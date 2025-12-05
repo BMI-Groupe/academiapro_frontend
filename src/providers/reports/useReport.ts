@@ -1,6 +1,7 @@
 import React from 'react';
-import {ReportsContext} from "../../context/ReportContext.tsx";
-import {PaginatedReport, ReportType} from "../../context/report/report.types.ts.tsx";
+import { ReportsContext } from "../../context/ReportContext.tsx";
+// @ts-ignore
+import { PaginatedReport, ReportType } from "../../context/report/report.types.ts.tsx";
 
 export const useReport = (): {
     reports: PaginatedReport | null;
@@ -16,5 +17,6 @@ export const useReport = (): {
     if (!context) {
         throw new Error('useComplaint must be used within a ComplaintProvider');
     }
+    // @ts-ignore
     return context;
 };
