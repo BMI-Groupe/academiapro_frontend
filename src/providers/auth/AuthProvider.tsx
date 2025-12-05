@@ -85,6 +85,7 @@ export default function AuthProvider({ children }) {
                     // @ts-ignore
                     status: err.response.status
                 };
+                // @ts-ignore
             } else if (err.request) {
                 // Request was made but no response received (network error)
                 return {

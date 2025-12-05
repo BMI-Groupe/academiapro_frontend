@@ -3,8 +3,10 @@ import schoolYearService from "../../api/services/schoolYearService";
 import useAuth from "../../providers/auth/useAuth.ts";
 
 export default function SchoolOverview() {
-  const { userInfo } = useAuth();
-  const [activeYear, setActiveYear] = useState(null);
+  const authContext = useAuth();
+  // @ts-ignore
+  const userInfo = authContext?.userInfo as any;
+  const [activeYear, setActiveYear] = useState<any>(null);
 
   useEffect(() => {
     (async () => {
