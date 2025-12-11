@@ -76,7 +76,7 @@ export default function PaymentManagement() {
       
       const res = await paymentService.getAll(filters);
       if (res.success && res.data) {
-        setPayments(res.data.data); // data.data because it's paginated
+        setPayments(res.data[0].data); // data.data because it's paginated
         setTotalPages(res.data.last_page);
       }
     } catch (error) {
