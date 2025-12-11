@@ -29,7 +29,9 @@ export default function PaymentManagement() {
   useEffect(() => {
     const loadSchoolYears = async () => {
         try {
+            // console.log("📅 Chargement des années scolaires...");
             const res = await schoolYearService.list();
+            // console.log("📅 Réponse années scolaires:", res);
             if (res && res.success) {
                 // Gestion robuste comme dans les autres composants
                 let items: any[] = [];
@@ -39,29 +41,41 @@ export default function PaymentManagement() {
                    items = res.data.data;
                 }
                 const uniqueItems = items.filter((v,i,a)=>a.findIndex(t=>(t.id === v.id))===i);
+                // console.log("📅 Années scolaires chargées:", uniqueItems);
                 setSchoolYears(uniqueItems);
             }
-        } catch(e) { console.error(e); }
+        } catch(e) { console.error("❌ Erreur chargement années:", e); }
     };
     loadSchoolYears();
   }, []);
 
   // Initialiser selectedYear avec activeSchoolYear si présent
   useEffect(() => {
+    // console.log("🎯 activeSchoolYear:", activeSchoolYear);
+    // console.log("🎯 selectedYear actuel:", selectedYear);
+    
     if (activeSchoolYear && !selectedYear) {
+        // console.log("✅ Initialisation avec activeSchoolYear");
         setSelectedYear(activeSchoolYear);
     }
   }, [activeSchoolYear]);
 
   // Re-fetch quand selectedYear change
   useEffect(() => {
+    // console.log("🔄 useEffect fetch - selectedYear:", selectedYear);
+    // console.log("🔄 useEffect fetch - schoolYears.length:", schoolYears.length);
+    
     if (selectedYear) {
+        // console.log("✅ Appel fetchPayments avec selectedYear:", selectedYear);
         fetchPayments();
     } else if (schoolYears.length > 0 && !selectedYear) {
-        // Fallback: si pas d'année sélectionnée, on prend la plus récente
-        // (Optionnel, ou attend que activeSchoolYear arrive)
+        // Fallback: si pas d'année sélectionnée, on prend la première
+        // console.log("⚠️ Pas d'année sélectionnée, utilisation de la première année disponible");
+        setSelectedYear(schoolYears[0]);
+    } else {
+        // console.log("⏳ En attente de selectedYear ou schoolYears");
     }
-  }, [currentPage, selectedYear, searchTerm]);
+  }, [currentPage, selectedYear, searchTerm, schoolYears]);
 
   const fetchPayments = async () => {
     if (!selectedYear) return;
@@ -75,12 +89,17 @@ export default function PaymentManagement() {
       };
       
       const res = await paymentService.getAll(filters);
+      // console.log("Response complète:", res);
+      // console.log("Données paginées:", res.data);
+      
       if (res.success && res.data) {
-        setPayments(res.data[0].data); // data.data because it's paginated
-        setTotalPages(res.data.last_page);
+        // res.data contient déjà l'objet paginé complet
+        // res.data.data contient le tableau des paiements
+        setPayments(res.data.data || []);
+        setTotalPages(res.data.last_page || 1);
       }
     } catch (error) {
-      console.error(error);
+      console.error("Erreur lors du chargement des paiements:", error);
     } finally {
       setLoading(false);
     }
