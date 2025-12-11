@@ -50,14 +50,18 @@ export default function ClassroomSubjectsPage() {
   const loadSchoolYears = async () => {
     try {
       const res = await schoolYearService.list();
-      if (res && res.success && res.data) {
+      if (res && res.success) {
         let items: any[] = [];
         if (Array.isArray(res.data)) {
           if (res.data[0] && Array.isArray(res.data[0].data)) {
             items = res.data[0].data;
+          } else if (res.data[0] && Array.isArray(res.data[0])) {
+            items = res.data[0];
           } else {
             items = res.data;
           }
+        } else if (res.data && Array.isArray(res.data.data)) {
+          items = res.data.data;
         }
         setSchoolYears(items || []);
       }
@@ -329,8 +333,8 @@ export default function ClassroomSubjectsPage() {
               setSelectedYear(year);
             }}
           >
-            {schoolYears.map(year => (
-              <option key={year.id} value={year.id}>
+            {schoolYears.map((year, index) => (
+              <option key={`${year.id}-${index}`} value={year.id}>
                 {year.label} {year.is_active ? '(Active)' : ''}
               </option>
             ))}

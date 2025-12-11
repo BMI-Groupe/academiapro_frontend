@@ -6,6 +6,7 @@ import Button from "../../components/ui/button/Button";
 import Input from "../../components/form/input/InputField";
 import Label from "../../components/form/Label";
 import classroomService from "../../api/services/classroomService";
+import schoolYearService from "../../api/services/schoolYearService";
 import { useCustomModal } from "../../context/ModalContext";
 
 interface ClassroomForm {
@@ -13,6 +14,8 @@ interface ClassroomForm {
   code: string;
   level: string;
   cycle: string;
+  tuition_fee: string;
+  school_year_id: string;
 }
 
 const emptyForm: ClassroomForm = {
@@ -20,6 +23,8 @@ const emptyForm: ClassroomForm = {
   code: "",
   level: "",
   cycle: "",
+  tuition_fee: "",
+  school_year_id: "",
 };
 
 export default function ClassroomFormPage() {
@@ -29,6 +34,7 @@ export default function ClassroomFormPage() {
 
   const isEditMode = Boolean(id);
   const [form, setForm] = useState<ClassroomForm>(emptyForm);
+  const [schoolYears, setSchoolYears] = useState<any[]>([]);
   const [fetching, setFetching] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -53,6 +59,30 @@ export default function ClassroomFormPage() {
   };
 
   useEffect(() => {
+    const fetchSchoolYears = async () => {
+        try {
+            const res = await schoolYearService.list();
+            if (res.success) {
+                let items: any[] = [];
+                if (Array.isArray(res.data)) {
+                  if (res.data[0] && Array.isArray(res.data[0].data)) {
+                    items = res.data[0].data;
+                  } else if (res.data[0] && Array.isArray(res.data[0])) {
+                    items = res.data[0];
+                  } else {
+                    items = res.data;
+                  }
+                } else if (res.data && Array.isArray(res.data.data)) {
+                  items = res.data.data;
+                }
+                setSchoolYears(items || []);
+            }
+        } catch (e) {
+            console.error("Failed to fetch school years", e);
+        }
+    };
+    fetchSchoolYears();
+
     if (!isEditMode || !id) {
       setForm(emptyForm);
       return;
@@ -69,6 +99,8 @@ export default function ClassroomFormPage() {
           code: payload?.code ?? "",
           level: payload?.level ?? "",
           cycle: payload?.cycle ?? "",
+          tuition_fee: payload?.tuition_fee ?? "",
+          school_year_id: payload?.school_year_id ?? "",
         });
       } catch (error) {
         console.error(error);
@@ -93,7 +125,7 @@ export default function ClassroomFormPage() {
   };
 
   const validateForm = () => {
-    if (!form.name || !form.code || !form.level || !form.cycle) {
+    if (!form.name || !form.code || !form.level || !form.cycle || !form.school_year_id) {
       openModal({
         title: "Validation",
         description: "Veuillez remplir tous les champs du formulaire.",
@@ -114,6 +146,8 @@ export default function ClassroomFormPage() {
         code: form.code,
         level: form.level,
         cycle: form.cycle,
+        tuition_fee: form.tuition_fee ? Number(form.tuition_fee) : 0,
+        school_year_id: Number(form.school_year_id),
       };
 
       if (isEditMode && id) {
@@ -133,11 +167,22 @@ export default function ClassroomFormPage() {
       }
 
       navigate("/classrooms");
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
+      let message = "Une erreur est survenue lors de l'enregistrement.";
+      if (error.response && error.response.data && error.response.data.message) {
+        message = error.response.data.message;
+        // If there are detailed validation errors, append them
+        if (error.response.data.data) {
+            const errors = Object.values(error.response.data.data).flat();
+            if (errors.length > 0) {
+                message += " " + errors.join(" ");
+            }
+        }
+      }
       openModal({
         title: "Erreur",
-        description: "Une erreur est survenue lors de l'enregistrement.",
+        description: message,
         variant: "error",
       });
     } finally {
@@ -234,6 +279,36 @@ export default function ClassroomFormPage() {
                     <option value="lycee">Lycée</option>
                   </select>
                 </div>
+              </div>
+
+              <div>
+                <Label htmlFor="classroom-school-year">Année Scolaire</Label>
+                <select
+                    id="classroom-school-year"
+                    value={form.school_year_id}
+                    onChange={(e) => handleChange("school_year_id", e.target.value)}
+                    className={selectClasses}
+                    disabled={submitting}
+                >
+                    <option value="">Sélectionner une année</option>
+                    {schoolYears.map((sy: any, index: number) => (
+                        <option key={`${sy.id}-${index}`} value={sy.id}>
+                            {sy.label}
+                        </option>
+                    ))}
+                </select>
+              </div>
+
+              <div>
+                <Label htmlFor="classroom-tuition">Montant Écolage (FCFA)</Label>
+                <Input
+                  id="classroom-tuition"
+                  type="number"
+                  placeholder="Ex: 150000"
+                  value={form.tuition_fee}
+                  onChange={(e) => handleChange("tuition_fee", e.target.value)}
+                  disabled={submitting}
+                />
               </div>
 
               <div className="flex flex-col gap-3 pt-4 md:flex-row md:justify-end">

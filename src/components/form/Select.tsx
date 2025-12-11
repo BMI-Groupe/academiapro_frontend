@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface Option {
   value: string;
@@ -11,6 +11,7 @@ interface SelectProps {
   onChange: (value: string) => void;
   className?: string;
   defaultValue?: string;
+  value?: string; // Add controlled value prop
 }
 
 const Select: React.FC<SelectProps> = ({
@@ -19,14 +20,29 @@ const Select: React.FC<SelectProps> = ({
   onChange,
   className = "",
   defaultValue = "",
+  value, // Destructure the new value prop
 }) => {
-  // Manage the selected value
-  const [selectedValue, setSelectedValue] = useState<string>(defaultValue);
+  // Use value prop if provided (controlled), otherwise use internal state (uncontrolled)
+  const [internalValue, setInternalValue] = useState<string>(defaultValue);
+  
+  // Sync internal state with external value prop
+  useEffect(() => {
+    if (value !== undefined) {
+      setInternalValue(value);
+    }
+  }, [value]);
+  
+  const selectedValue = value !== undefined ? value : internalValue;
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = e.target.value;
-    setSelectedValue(value);
-    onChange(value); // Trigger parent handler
+    const newValue = e.target.value;
+    
+    // Update internal state only if not controlled
+    if (value === undefined) {
+      setInternalValue(newValue);
+    }
+    
+    onChange(newValue); // Always trigger parent handler
   };
 
   return (

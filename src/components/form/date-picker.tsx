@@ -1,6 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import flatpickr from "flatpickr";
 import "flatpickr/dist/flatpickr.css";
+import { French } from "flatpickr/dist/l10n/fr";
 import Label from "./Label";
 import { CalenderIcon } from "../../icons";
 import Hook = flatpickr.Options.Hook;
@@ -23,23 +24,35 @@ export default function DatePicker({
   defaultDate,
   placeholder,
 }: PropsType) {
+  const flatpickrRef = useRef<flatpickr.Instance | null>(null);
+
   useEffect(() => {
     const flatPickr = flatpickr(`#${id}`, {
       mode: mode || "single",
       static: true,
       monthSelectorType: "static",
       dateFormat: "Y-m-d",
-      locale: "fr",
+      locale: French,
       defaultDate,
       onChange,
     });
 
+    flatpickrRef.current = Array.isArray(flatPickr) ? flatPickr[0] : flatPickr;
+
     return () => {
-      if (!Array.isArray(flatPickr)) {
-        flatPickr.destroy();
+      if (flatpickrRef.current) {
+        flatpickrRef.current.destroy();
+        flatpickrRef.current = null;
       }
     };
-  }, [mode, onChange, id, defaultDate]);
+  }, [mode, onChange, id]);
+
+  // Update the date when defaultDate changes
+  useEffect(() => {
+    if (flatpickrRef.current && defaultDate !== undefined) {
+      flatpickrRef.current.setDate(defaultDate, false);
+    }
+  }, [defaultDate]);
 
   return (
     <div>

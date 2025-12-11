@@ -32,10 +32,12 @@ export default function SchoolYearFilter({
         disabled={loading}
       >
         {showAll && <option value="">Toutes les années</option>}
-        {years.map(year => (
-          <option key={year.id} value={year.id}>
-            {year.label} {year.is_active ? '(Active)' : ''}
-          </option>
+        {years
+            .filter((year, index, self) => index === self.findIndex((t) => t.id === year.id))
+            .map((year) => (
+              <option key={year.id} value={year.id}>
+                {year.label} {year.is_active ? '(Active)' : ''}
+              </option>
         ))}
       </select>
     </div>

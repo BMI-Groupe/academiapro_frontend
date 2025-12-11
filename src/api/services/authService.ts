@@ -15,8 +15,20 @@ const logout = async () => {
   return res.data;
 };
 
+const forgotPassword = async (email: string) => {
+  const res = await axiosInstance.post("/forgot-password", { email });
+  return res.data;
+};
+
+const resetPassword = async (payload: any) => {
+  const res = await axiosInstance.post("/reset-password", payload);
+  return res.data;
+};
+
 export default {
   login,
   me,
   logout,
+  forgotPassword,
+  resetPassword,
 };

@@ -1,356 +1,418 @@
-import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import PageMeta from "../../components/common/PageMeta";
-import PageBreadcrumb from "../../components/common/PageBreadCrumb";
-import Button from "../../components/ui/button/Button";
-import Label from "../../components/form/Label";
-import classroomService from "../../api/services/classroomService";
-import assignmentService from "../../api/services/assignmentService";
-import schoolYearService from "../../api/services/schoolYearService";
-import { useCustomModal } from "../../context/ModalContext";
-import { useActiveSchoolYear } from "../../context/SchoolYearContext";
+import React, { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import PageMeta from '../../components/common/PageMeta';
+import PageBreadcrumb from '../../components/common/PageBreadCrumb';
+import classroomDetailService from '../../api/services/classroomDetailService';
+import { useCustomModal } from '../../context/ModalContext';
 
 export default function ClassroomDetailPage() {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const { openModal } = useCustomModal();
-  const { activeSchoolYear } = useActiveSchoolYear();
-  const [loading, setLoading] = useState(true);
-  const [classroom, setClassroom] = useState<any>(null);
-  const [schoolYears, setSchoolYears] = useState<any[]>([]);
-  const [assignments, setAssignments] = useState<any[]>([]);
-  const [selectedYear, setSelectedYear] = useState<string>("");
-  const [selectedAssignment, setSelectedAssignment] = useState<string>("");
-  const [students, setStudents] = useState<any[]>([]);
-  const [loadingRanking, setLoadingRanking] = useState(false);
+    const { id } = useParams<{ id: string }>();
+    const navigate = useNavigate();
+    const { openModal } = useCustomModal();
+    const [classroom, setClassroom] = useState<any>(null);
+    const [students, setStudents] = useState<any[]>([]);
+    const [assignments, setAssignments] = useState<any[]>([]);
+    const [ranking, setRanking] = useState<any>(null);
+    const [selectedAssignment, setSelectedAssignment] = useState<number | null>(null);
+    const [activeTab, setActiveTab] = useState<'students' | 'ranking' | 'assignments'>('students');
+    const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadData();
-  }, [id]);
+    useEffect(() => {
+        if (id) {
+            loadClassroomData();
+        }
+    }, [id]);
 
-  useEffect(() => {
-    if (activeSchoolYear && !selectedYear) {
-      setSelectedYear(activeSchoolYear.id.toString());
-    }
-  }, [activeSchoolYear]);
+    const loadClassroomData = async () => {
+        try {
+            setLoading(true);
+            const [detailsRes, assignmentsRes] = await Promise.all([
+                classroomDetailService.getDetails(parseInt(id!)),
+                classroomDetailService.getAssignments(parseInt(id!))
+            ]);
 
-  useEffect(() => {
-    if (selectedYear) {
-      loadAssignments();
-    }
-  }, [selectedYear]);
-
-  useEffect(() => {
-    if (selectedYear && selectedAssignment) {
-      loadRanking();
-    }
-  }, [selectedYear, selectedAssignment]);
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const [classRes, yearRes] = await Promise.all([
-        classroomService.get(parseInt(id!)),
-        schoolYearService.list(),
-      ]);
-
-      if (classRes.success) {
-        setClassroom(classRes.data);
-      }
-
-      if (yearRes.success) {
-        const extractItems = (res: any) => {
-          if (Array.isArray(res.data)) {
-            const firstItem = res.data[0];
-            if (Array.isArray(firstItem)) return firstItem;
-            if (firstItem && typeof firstItem === 'object' && Array.isArray(firstItem.data)) {
-              return firstItem.data;
+            if (detailsRes.data?.success) {
+                const data = detailsRes.data.data;
+                setClassroom(data.classroom);
+                setStudents(data.students || []);
             }
-            return res.data;
-          }
-          if (res.data && Array.isArray(res.data.data)) {
-            return res.data.data;
-          }
-          return [];
-        };
-        setSchoolYears(extractItems(yearRes));
-      }
-    } catch (e) {
-      console.error(e);
-      openModal({
-        title: "Erreur",
-        description: "Impossible de charger les informations de la classe.",
-        variant: "error",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  const loadAssignments = async () => {
-    try {
-      const res = await assignmentService.list({ school_year_id: selectedYear });
-      if (res.success) {
-        const extractItems = (res: any) => {
-          if (Array.isArray(res.data)) {
-            const firstItem = res.data[0];
-            if (Array.isArray(firstItem)) return firstItem;
-            if (firstItem && typeof firstItem === 'object' && Array.isArray(firstItem.data)) {
-              return firstItem.data;
+            if (assignmentsRes.data?.success) {
+                setAssignments(assignmentsRes.data.data[0] || []);
             }
-            return res.data;
-          }
-          if (res.data && Array.isArray(res.data.data)) {
-            return res.data.data;
-          }
-          return [];
-        };
-        setAssignments(extractItems(res));
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  };
+        } catch (error) {
+            openModal({ 
+                title: 'Erreur', 
+                description: 'Impossible de charger les données de la classe',
+                variant: 'error'
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
 
-  const loadRanking = async () => {
-    setLoadingRanking(true);
-    try {
-      const res = await classroomService.getRanking(
-        parseInt(id!),
-        parseInt(selectedYear),
-        selectedAssignment ? parseInt(selectedAssignment) : undefined
-      );
-      if (res.success) {
-        setStudents(res.data.students || []);
-      }
-    } catch (e) {
-      console.error(e);
-      openModal({
-        title: "Erreur",
-        description: "Impossible de charger le classement.",
-        variant: "error",
-      });
-    } finally {
-      setLoadingRanking(false);
-    }
-  };
+    const loadRanking = async (assignmentId?: number) => {
+        try {
+            const params = {
+                school_year_id: classroom?.school_year_id,
+                ...(assignmentId ? { assignment_id: assignmentId } : {})
+            };
 
-  if (loading) {
-    return (
-      <>
-        <PageMeta title="Détail classe" description="Chargement..." />
-        <PageBreadcrumb pageTitle="Détail classe" />
-        <div className="text-center py-12">
-          <p className="text-gray-500">Chargement...</p>
-        </div>
-      </>
-    );
-  }
+            const res = await classroomDetailService.getRanking(parseInt(id!), params);
+            
+            if (res.data?.success) {
+                setRanking(res.data.data);
+            }
+        } catch (error) {
+            openModal({ 
+                title: 'Erreur', 
+                description: 'Impossible de charger le classement',
+                variant: 'error'
+            });
+        }
+    };
 
-  if (!classroom) {
-    return (
-      <>
-        <PageMeta title="Détail classe" description="Classe introuvable" />
-        <PageBreadcrumb pageTitle="Détail classe" />
-        <div className="text-center py-12">
-          <p className="text-gray-500">Classe introuvable</p>
-          <Button onClick={() => navigate("/classrooms")} className="mt-4">
-            Retour à la liste
-          </Button>
-        </div>
-      </>
-    );
-  }
+    useEffect(() => {
+        if (activeTab === 'ranking' && id) {
+            loadRanking(selectedAssignment || undefined);
+        }
+    }, [activeTab, selectedAssignment]);
 
-  return (
-    <>
-      <PageMeta title={classroom.name} description="Détail de la classe" />
-      <PageBreadcrumb pageTitle={`Classe ${classroom.name}`} />
+    const printRanking = () => {
+        if (!ranking || !ranking.ranking) return;
 
-      <div className="space-y-6">
-        {/* Classroom Header */}
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
-          <div className="flex items-start justify-between">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white/90">
-                {classroom.name}
-              </h2>
-              <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                <div>
-                  <span className="text-gray-500">Code:</span>
-                  <span className="ml-2 font-medium text-gray-900 dark:text-white/90">
-                    {classroom.code || "N/A"}
-                  </span>
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            openModal({
+                title: 'Erreur',
+                description: 'Veuillez autoriser les pop-ups pour imprimer',
+                variant: 'error'
+            });
+            return;
+        }
+
+        const title = selectedAssignment 
+            ? `Classement - ${ranking.assignment.title}`
+            : `Classement Général - ${classroom.name}`;
+
+        const htmlContent = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>${title}</title>
+                <style>
+                    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; color: #333; }
+                    .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #eee; padding-bottom: 20px; }
+                    .header h1 { margin: 0; color: #2563eb; }
+                    .header p { margin: 5px 0 0; color: #666; }
+                    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px; }
+                    .stat-box { background: #f8fafc; padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #e2e8f0; }
+                    .stat-value { font-size: 24px; font-weight: bold; color: #1e293b; }
+                    .stat-label { font-size: 14px; color: #64748b; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                    th { text-align: left; padding: 12px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; font-size: 14px; color: #475569; }
+                    td { padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
+                    .rank-1 { color: #d97706; font-weight: bold; }
+                    .rank-2 { color: #475569; font-weight: bold; }
+                    .rank-3 { color: #b45309; font-weight: bold; }
+                    .score { font-weight: bold; color: #2563eb; }
+                    @media print {
+                        body { padding: 0; }
+                        .no-print { display: none; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>${title}</h1>
+                    <p>Classe : ${classroom.name} | Effectif : ${ranking.student_count || ranking.ranking.length} élèves</p>
+                    <p>Date : ${new Date().toLocaleDateString()}</p>
                 </div>
-                <div>
-                  <span className="text-gray-500">Cycle:</span>
-                  <span className="ml-2 font-medium text-gray-900 dark:text-white/90">
-                    {classroom.cycle || "N/A"}
-                  </span>
+
+                <div class="stats">
+                    <div class="stat-box">
+                        <div class="stat-value">${ranking.average?.toFixed(2) || ranking.class_average?.toFixed(2)}/20</div>
+                        <div class="stat-label">Moyenne de la classe</div>
+                    </div>
+                     ${ranking.highest ? `
+                    <div class="stat-box">
+                        <div class="stat-value">${ranking.highest}/20</div>
+                        <div class="stat-label">Meilleure note</div>
+                    </div>
+                    ` : ''}
+                    ${ranking.lowest ? `
+                    <div class="stat-box">
+                        <div class="stat-value">${ranking.lowest}/20</div>
+                        <div class="stat-label">Note la plus basse</div>
+                    </div>
+                    ` : ''}
                 </div>
-                <div>
-                  <span className="text-gray-500">Niveau:</span>
-                  <span className="ml-2 font-medium text-gray-900 dark:text-white/90">
-                    {classroom.level || "N/A"}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <Button variant="outline" onClick={() => navigate("/classrooms")}>
-              Retour
-            </Button>
-          </div>
-        </div>
 
-        {/* Filters */}
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label>Année scolaire</Label>
-              <select
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(e.target.value)}
-                className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent px-4 py-2.5 text-sm dark:bg-gray-900 dark:text-white/90"
-              >
-                <option value="">Sélectionner une année</option>
-                {schoolYears.map((year) => (
-                  <option key={year.id} value={year.id}>
-                    {year.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <Label>Examen/Composition</Label>
-              <select
-                value={selectedAssignment}
-                onChange={(e) => setSelectedAssignment(e.target.value)}
-                className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent px-4 py-2.5 text-sm dark:bg-gray-900 dark:text-white/90"
-                disabled={!selectedYear}
-              >
-                <option value="">Toutes les évaluations</option>
-                {assignments
-                  .filter((a) => a.type === "exam")
-                  .map((assignment) => (
-                    <option key={assignment.id} value={assignment.id}>
-                      {assignment.title}
-                    </option>
-                  ))}
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Ranking Table */}
-        {selectedYear && (
-          <div className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white/90">
-                Classement des élèves
-              </h3>
-              {students.length > 0 && (
-                <Button variant="outline" size="sm">
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  Télécharger PDF
-                </Button>
-              )}
-            </div>
-
-            {loadingRanking ? (
-              <div className="text-center py-8 text-gray-500">Chargement du classement...</div>
-            ) : students.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                Aucune note disponible pour cette sélection.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200 dark:border-gray-700">
-                      <th className="text-left p-3 text-sm font-semibold text-gray-700 dark:text-gray-300">
-                        Rang
-                      </th>
-                      <th className="text-left p-3 text-sm font-semibold text-gray-700 dark:text-gray-300">
-                        Matricule
-                      </th>
-                      <th className="text-left p-3 text-sm font-semibold text-gray-700 dark:text-gray-300">
-                        Nom complet
-                      </th>
-                      <th className="text-right p-3 text-sm font-semibold text-gray-700 dark:text-gray-300">
-                        Moyenne
-                      </th>
-                      <th className="text-center p-3 text-sm font-semibold text-gray-700 dark:text-gray-300">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {students.map((item, index) => (
-                      <tr
-                        key={index}
-                        className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50"
-                      >
-                        <td className="p-3">
-                          <div className="flex items-center">
-                            {item.rank <= 3 ? (
-                              <span
-                                className={`inline-flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm ${
-                                  item.rank === 1
-                                    ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300"
-                                    : item.rank === 2
-                                    ? "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
-                                    : "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300"
-                                }`}
-                              >
-                                {item.rank}
-                              </span>
-                            ) : (
-                              <span className="text-sm font-medium text-gray-900 dark:text-white/90">
-                                {item.rank}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="p-3 text-sm text-gray-600 dark:text-gray-400">
-                          {item.student.registration_number || "N/A"}
-                        </td>
-                        <td className="p-3">
-                          <button
-                            onClick={() => navigate(`/students/${item.student.id}`)}
-                            className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"
-                          >
-                            {item.student.first_name} {item.student.last_name}
-                          </button>
-                        </td>
-                        <td className="p-3 text-right">
-                          <span className="text-sm font-semibold text-gray-900 dark:text-white/90">
-                            {item.average}/20
-                          </span>
-                        </td>
-                        <td className="p-3 text-center">
-                          <button
-                            onClick={() => navigate(`/students/${item.student.id}`)}
-                            className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
-                            title="Voir le profil"
-                          >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 80px">Rang</th>
+                            <th>Élève</th>
+                            <th style="text-align: right">Note/Moyenne</th>
+                            ${selectedAssignment ? '<th style="text-align: right">%</th>' : ''}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${ranking.ranking.map((item: any) => `
+                            <tr>
+                                <td class="rank-${item.rank}">
+                                    ${item.rank === 1 ? '🥇 1er' : item.rank === 2 ? '🥈 2ème' : item.rank === 3 ? '🥉 3ème' : item.rank + 'ème'}
+                                </td>
+                                <td>${item.student.first_name} ${item.student.last_name}</td>
+                                <td style="text-align: right" class="score">${selectedAssignment ? item.score : item.average}/20</td>
+                                ${selectedAssignment ? `<td style="text-align: right">${item.percentage?.toFixed(0)}%</td>` : ''}
+                            </tr>
+                        `).join('')}
+                    </tbody>
                 </table>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    </>
-  );
+                <script>
+                    window.onload = function() { window.print(); }
+                </script>
+            </body>
+            </html>
+        `;
+
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+    };
+
+    if (loading) {
+        return <div className="p-6">Chargement...</div>;
+    }
+
+    if (!classroom) {
+        return <div className="p-6">Classe non trouvée</div>;
+    }
+
+    return (
+        <div className="p-6">
+            <PageMeta title={classroom.name} description={`Détails de la classe ${classroom.name}`} />
+            <PageBreadcrumb pageTitle={classroom.name} />
+
+            {/* En-tête classe */}
+            <div className="bg-white rounded-lg shadow p-6 mb-6">
+                <div className="flex justify-between items-start">
+                    <div>
+                        <h1 className="text-2xl font-bold mb-2">{classroom.name}</h1>
+                        <div className="flex gap-6 text-sm">
+                            <div>
+                                <span className="text-gray-500">Cycle:</span>
+                                <span className="ml-2 font-semibold capitalize">{classroom.cycle}</span>
+                            </div>
+                            <div>
+                                <span className="text-gray-500">Niveau:</span>
+                                <span className="ml-2 font-semibold">{classroom.level}</span>
+                            </div>
+                            <div>
+                                <span className="text-gray-500">Écolage:</span>
+                                <span className="ml-2 font-semibold">{classroom.tuition_fee?.toLocaleString()} FCFA</span>
+                            </div>
+                            <div>
+                                <span className="text-gray-500">Effectif:</span>
+                                <span className="ml-2 font-semibold">{students.length} élèves</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Onglets */}
+            <div className="bg-white rounded-lg shadow">
+                <div className="border-b border-gray-200">
+                    <nav className="flex -mb-px">
+                        {[
+                            { key: 'students', label: 'Élèves' },
+                            { key: 'ranking', label: 'Classement' },
+                            { key: 'assignments', label: 'Examens' }
+                        ].map(tab => (
+                            <button
+                                key={tab.key}
+                                onClick={() => setActiveTab(tab.key as any)}
+                                className={`px-6 py-3 border-b-2 font-medium text-sm ${
+                                    activeTab === tab.key
+                                        ? 'border-blue-500 text-blue-600'
+                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                }`}
+                            >
+                                {tab.label}
+                            </button>
+                        ))}
+                    </nav>
+                </div>
+
+                <div className="p-6">
+                    {activeTab === 'students' && (
+                        <div>
+                            <h3 className="text-lg font-semibold mb-4">Liste des élèves ({students.length})</h3>
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                    <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Matricule</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nom</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Prénom</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Genre</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-200">
+                                        {students.map((student: any) => (
+                                            <tr key={student.id} className="hover:bg-gray-50">
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm">{student.matricule}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap font-medium">{student.last_name}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap">{student.first_name}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm">{student.gender}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                                    <button
+                                                        onClick={() => navigate(`/students/${student.id}`)}
+                                                        className="text-blue-600 hover:text-blue-800"
+                                                    >
+                                                        Voir détails
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'ranking' && (
+                        <div>
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-lg font-semibold">Classement</h3>
+                                <div className="flex gap-3">
+                                    <select
+                                        value={selectedAssignment || ''}
+                                        onChange={(e) => setSelectedAssignment(e.target.value ? parseInt(e.target.value) : null)}
+                                        className="px-4 py-2 border rounded-lg"
+                                    >
+                                        <option value="">Classement général</option>
+                                        {assignments.map((a: any) => (
+                                            <option key={a.id} value={a.id}>{a.title}</option>
+                                        ))}
+                                    </select>
+                                    <button
+                                        onClick={printRanking}
+                                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                                    >
+                                        <span>🖨️</span> Imprimer / PDF
+                                    </button>
+                                </div>
+                            </div>
+
+                            {ranking && (
+                                <>
+                                    {ranking.assignment && (
+                                        <div className="mb-4 p-4 bg-blue-50 rounded-lg">
+                                            <h4 className="font-semibold">{ranking.assignment.title}</h4>
+                                            <p className="text-sm text-gray-600">{ranking.assignment.subject?.name}</p>
+                                            <div className="grid grid-cols-3 gap-4 mt-2 text-sm">
+                                                <div>
+                                                    <span className="text-gray-500">Moyenne:</span>
+                                                    <span className="ml-2 font-bold">{ranking.average?.toFixed(2)}/20</span>
+                                                </div>
+                                                <div>
+                                                    <span className="text-gray-500">Plus haute:</span>
+                                                    <span className="ml-2 font-bold">{ranking.highest}/20</span>
+                                                </div>
+                                                <div>
+                                                    <span className="text-gray-500">Plus basse:</span>
+                                                    <span className="ml-2 font-bold">{ranking.lowest}/20</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="overflow-x-auto">
+                                        <table className="min-w-full divide-y divide-gray-200">
+                                            <thead className="bg-gray-50">
+                                                <tr>
+                                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rang</th>
+                                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Élève</th>
+                                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                                        {selectedAssignment ? 'Note' : 'Moyenne'}
+                                                    </th>
+                                                    {selectedAssignment && (
+                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">%</th>
+                                                    )}
+                                                </tr>
+                                            </thead>
+                                            <tbody className="bg-white divide-y divide-gray-200">
+                                                {ranking.ranking?.map((item: any) => (
+                                                    <tr key={item.student.id} className={item.rank <= 3 ? 'bg-yellow-50' : ''}>
+                                                        <td className="px-6 py-4 whitespace-nowrap">
+                                                            <span className={`font-bold ${
+                                                                item.rank === 1 ? 'text-yellow-600' :
+                                                                item.rank === 2 ? 'text-gray-600' :
+                                                                item.rank === 3 ? 'text-orange-600' : ''
+                                                            }`}>
+                                                                {item.rank === 1 ? '🥇' : item.rank === 2 ? '🥈' : item.rank === 3 ? '🥉' : item.rank}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap font-medium">
+                                                            {item.student.first_name} {item.student.last_name}
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap">
+                                                            <span className="font-bold text-blue-600">
+                                                                {selectedAssignment ? item.score : item.average}/20
+                                                            </span>
+                                                        </td>
+                                                        {selectedAssignment && (
+                                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                                {item.percentage?.toFixed(1)}%
+                                                            </td>
+                                                        )}
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    )}
+
+                    {activeTab === 'assignments' && (
+                        <div>
+                            <h3 className="text-lg font-semibold mb-4">Examens de la classe</h3>
+                            <div className="grid gap-4">
+                                {assignments.map((assignment: any) => (
+                                    <div key={assignment.id} className="border rounded-lg p-4 hover:bg-gray-50">
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <h4 className="font-semibold">{assignment.title}</h4>
+                                                <p className="text-sm text-gray-600">{assignment.subject?.name}</p>
+                                                <p className="text-xs text-gray-500 mt-1">
+                                                    Date limite: {new Date(assignment.due_date).toLocaleDateString()}
+                                                </p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-sm text-gray-500">{assignment.grades_count} notes</p>
+                                                <button
+                                                    onClick={() => {
+                                                        setSelectedAssignment(assignment.id);
+                                                        setActiveTab('ranking');
+                                                    }}
+                                                    className="text-blue-600 hover:text-blue-800 text-sm mt-1"
+                                                >
+                                                    Voir classement →
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
 }

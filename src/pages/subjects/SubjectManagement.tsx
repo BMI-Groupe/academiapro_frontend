@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import Button from "../../components/ui/button/Button";
@@ -9,54 +10,73 @@ import schoolYearService from "../../api/services/schoolYearService";
 import { useActiveSchoolYear } from "../../context/SchoolYearContext";
 import SchoolYearFilter from "../../components/common/SchoolYearFilter";
 import ActiveSchoolYearAlert from "../../components/common/ActiveSchoolYearAlert";
-import Input from "../../components/form/input/InputField";
-import Label from "../../components/form/Label";
-
-interface SubjectForm {
-  name: string;
-  code: string;
-  coefficient: number;
-}
+import useAuth from "../../providers/auth/useAuth";
 
 export default function SubjectManagement() {
-  const { openModal, closeModal } = useCustomModal();
+  /* eslint-disable @typescript-eslint/ban-ts-comment */
+  const { openModal } = useCustomModal();
+  const navigate = useNavigate();
   const { activeSchoolYear } = useActiveSchoolYear();
+  const { userInfo } = useAuth();
+  // @ts-ignore
+  const userRole = userInfo?.role;
   const [subjects, setSubjects] = useState<any[]>([]);
   const [schoolYears, setSchoolYears] = useState<any[]>([]);
   const [selectedYear, setSelectedYear] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [form, setForm] = useState<SubjectForm>({
-    name: "",
-    code: "",
-    coefficient: 1,
-  });
 
-  const fetchSubjects = async () => {
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [perPage, setPerPage] = useState(15);
+  const [totalItems, setTotalItems] = useState(0);
+
+  const fetchSubjects = async (page = 1) => {
     setLoading(true);
     try {
-      const res = await subjectService.list({ school_year_id: selectedYear?.id });
-      if (res.success) {
+      const res = await subjectService.list({ 
+          school_year_id: selectedYear?.id,
+          page: page,
+          per_page: perPage
+      });
+
+      if (res && res.success) {
         let items: any[] = [];
-        if (Array.isArray(res.data)) {
-          // If the first element is a paginator/resource with `data` key
-          if (res.data[0] && Array.isArray(res.data[0].data)) {
-            items = res.data[0].data;
-          } else {
-            // otherwise assume res.data is already the items array
-            items = res.data as any[];
-          }
-        } else if (res.data && Array.isArray(res.data.data)) {
-          items = res.data.data;
+        let meta: any = {};
+
+        const responseData = Array.isArray(res.data) ? res.data[0] : res.data;
+
+        if (responseData && typeof responseData === 'object') {
+             if (Array.isArray(responseData.data)) {
+                 items = responseData.data;
+                 meta = responseData; 
+             } else {
+                 items = Array.isArray(responseData) ? responseData : [];
+             }
+        } else {
+             items = Array.isArray(res.data) ? res.data : [];
         }
 
         setSubjects(items || []);
+
+        if (meta.current_page) {
+            setCurrentPage(meta.current_page);
+            setTotalPages(meta.last_page);
+            setTotalItems(meta.total);
+            setPerPage(meta.per_page);
+        } else {
+            setCurrentPage(1);
+            setTotalPages(1);
+            setTotalItems(items.length);
+        }
       } else {
         setSubjects([]);
+        setTotalItems(0);
       }
     } catch (e) {
       console.error(e);
       setSubjects([]);
+      setTotalItems(0);
     } finally {
       setLoading(false);
     }
@@ -68,22 +88,17 @@ export default function SubjectManagement() {
       if (res && res.success) {
         let items: any[] = [];
         if (Array.isArray(res.data)) {
-          // Check if the first element is a paginator object (has .data array)
-          if (res.data[0] && Array.isArray(res.data[0].data)) {
-            items = res.data[0].data;
-          } 
-          // Check if the first element is the array of items itself (non-paginated case)
-          else if (res.data[0] && Array.isArray(res.data[0])) {
-            items = res.data[0];
-          }
-          // Fallback: assume res.data is the list (though unlikely given the controller)
-          else {
-            items = res.data as any[];
-          }
-        } else if (res.data && Array.isArray(res.data.data)) {
-          items = res.data.data;
+           if (Array.isArray(res.data[0])) {
+               items = res.data[0];
+           } else {
+               items = res.data;
+           }
+        } else if (res.data?.data) {
+           items = res.data.data;
         }
-        setSchoolYears(items || []);
+        
+        const uniqueItems = items.filter((v,i,a)=>a.findIndex(t=>(t.id === v.id))===i);
+        setSchoolYears(uniqueItems);
       }
     } catch (e) {
       console.error(e);
@@ -95,196 +110,20 @@ export default function SubjectManagement() {
   }, []);
 
   useEffect(() => {
-    if (activeSchoolYear && !selectedYear) {
-      setSelectedYear(activeSchoolYear);
-    }
-  }, [activeSchoolYear]);
-
-  useEffect(() => {
-    fetchSubjects();
+    // Charge tout (null) ou filtre
+    fetchSubjects(1);
   }, [selectedYear]);
 
+  const handlePageChange = (page: number) => {
+      fetchSubjects(page);
+  };
+
   const handleOpenCreateModal = () => {
-    setEditingId(null);
-    setForm({ name: "", code: "", coefficient: 1 });
-    showFormModal();
+    navigate("/subjects/new");
   };
 
   const handleOpenEditModal = (subject: any) => {
-    setEditingId(subject.id);
-    setForm({
-      name: subject.name || "",
-      code: subject.code || "",
-      coefficient: subject.coefficient || 1,
-    });
-    showFormModal();
-  };
-
-  const showFormModal = () => {
-    openModal({
-      title: editingId ? "Éditer la matière" : "Créer une matière",
-      content: () => {
-        const ModalForm: React.FC = () => {
-          const [local, setLocal] = useState({
-            name: form.name,
-            code: form.code,
-            coefficient: form.coefficient,
-          });
-
-          useEffect(
-            () =>
-              setLocal({
-                name: form.name,
-                code: form.code,
-                coefficient: form.coefficient,
-              }),
-            [form]
-          );
-
-          const submit = async () => {
-            if (!local.name || !local.code) {
-              openModal({
-                title: "Validation",
-                description: "Veuillez remplir les champs obligatoires.",
-                variant: "error",
-              });
-              return;
-            }
-            setLoading(true);
-            try {
-              const payload = { ...local };
-              if (editingId) {
-                await subjectService.update(editingId, payload);
-                openModal({
-                  title: "Succès",
-                  description: "Matière mise à jour avec succès.",
-                  variant: "success",
-                });
-              } else {
-                await subjectService.create(payload);
-                openModal({
-                  title: "Succès",
-                  description: "Matière créée avec succès.",
-                  variant: "success",
-                });
-              }
-              closeModal();
-              await fetchSubjects();
-            } catch (e) {
-              console.error(e);
-              openModal({
-                title: "Erreur",
-                description: "Une erreur s'est produite lors de l'opération.",
-                variant: "error",
-              });
-            } finally {
-              setLoading(false);
-            }
-          };
-
-          return (
-            <div className="space-y-4">
-              <div>
-                <Label>Nom de la matière</Label>
-                <Input
-                  type="text"
-                  placeholder="Ex: Mathématiques"
-                  value={local.name}
-                  onChange={(e) => setLocal({ ...local, name: e.target.value })}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label>Code</Label>
-                  <Input
-                    type="text"
-                    placeholder="Ex: MATH"
-                    value={local.code}
-                    onChange={(e) =>
-                      setLocal({ ...local, code: e.target.value })
-                    }
-                  />
-                </div>
-
-                <div>
-                  <Label>Coefficient</Label>
-                  <Input
-                    type="number"
-                    placeholder="1"
-                    value={local.coefficient as any}
-                    onChange={(e) =>
-                      setLocal({
-                        ...local,
-                        coefficient: parseFloat(e.target.value) || 1,
-                      })
-                    }
-                    min="0.5"
-                    step={0.5}
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4">
-                <Button variant="outline" onClick={closeModal}>
-                  Annuler
-                </Button>
-                <Button onClick={submit}>
-                  {editingId ? "Mettre à jour" : "Créer"}
-                </Button>
-              </div>
-            </div>
-          );
-        };
-
-        return <ModalForm />;
-      },
-      variant: "info",
-    });
-  };
-
-  const handleSubmitForm = async () => {
-    if (!form.name || !form.code) {
-      openModal({
-        title: "Validation",
-        description: "Veuillez remplir les champs obligatoires.",
-        variant: "error",
-      });
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const payload = { ...form };
-
-      if (editingId) {
-        await subjectService.update(editingId, payload);
-        openModal({
-          title: "Succès",
-          description: "Matière mise à jour avec succès.",
-          variant: "success",
-        });
-      } else {
-        await subjectService.create(payload);
-        openModal({
-          title: "Succès",
-          description: "Matière créée avec succès.",
-          variant: "success",
-        });
-      }
-
-      closeModal();
-      await fetchSubjects();
-    } catch (e) {
-      console.error(e);
-      openModal({
-        title: "Erreur",
-        description: "Une erreur s'est produite lors de l'opération.",
-        variant: "error",
-      });
-    } finally {
-      setLoading(false);
-    }
+    navigate(`/subjects/${subject.id}/edit`);
   };
 
   const handleDelete = (subject: any) => {
@@ -301,7 +140,7 @@ export default function SubjectManagement() {
             description: "Matière supprimée avec succès.",
             variant: "success",
           });
-          await fetchSubjects();
+          await fetchSubjects(currentPage);
         } catch (e) {
           console.error(e);
           openModal({
@@ -331,9 +170,12 @@ export default function SubjectManagement() {
             onChange={setSelectedYear}
             years={schoolYears}
             loading={loading}
+            showAll={true}
             className="w-64"
           />
-          <Button onClick={handleOpenCreateModal}>+ Nouvelle matière</Button>
+          {userRole !== 'enseignant' && (
+            <Button onClick={handleOpenCreateModal}>+ Nouvelle matière</Button>
+          )}
         </div>
 
         <DataTable
@@ -344,8 +186,16 @@ export default function SubjectManagement() {
           ]}
           data={subjects}
           loading={loading}
-          onEdit={handleOpenEditModal}
-          onDelete={handleDelete}
+          onEdit={userRole !== 'enseignant' ? handleOpenEditModal : undefined}
+          onDelete={userRole !== 'enseignant' ? handleDelete : undefined}
+          
+          pagination={{
+              currentPage: currentPage,
+              totalPages: totalPages,
+              totalItems: totalItems,
+              perPage: perPage,
+              onPageChange: handlePageChange
+          }}
         />
       </div>
     </>

@@ -10,6 +10,11 @@ const getActive = async () => {
   return res.data;
 };
 
+const get = async (id: number) => {
+  const res = await axiosInstance.get(`/school-years/${id}`);
+  return res.data;
+};
+
 const create = async (payload: any) => {
   const res = await axiosInstance.post(`/school-years`, payload);
   return res.data;
@@ -28,6 +33,7 @@ const remove = async (id: number) => {
 export default {
   list,
   getActive,
+  get,
   create,
   update,
   remove,

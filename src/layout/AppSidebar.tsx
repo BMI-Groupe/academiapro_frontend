@@ -14,6 +14,7 @@ import {
   CalenderIcon,
 } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
+import useAuth from "../providers/auth/useAuth";
 
 type NavItem = {
   name: string;
@@ -70,6 +71,16 @@ const navItems: NavItem[] = [
     icon: <TableIcon />,
     name: "Emplois du temps",
     path: "/schedules",
+  },
+  {
+    icon: <PieChartIcon />, // Using PieChartIcon as placeholder for Finance
+    name: "Finances / Écolage",
+    path: "/payments",
+  },
+  {
+      icon: <FolderIcon />, 
+      name: "Écoles",
+      path: "/schools",
   }
 ];
 
@@ -84,11 +95,11 @@ const usersItems: NavItem[] = [
     name: "Créer un utilisateur",
     path: "/create-user",
   },
-  {
-    icon: <UserCircleIcon />,
-    name: "Gestion des rôles",
-    path: "/role-managment",
-  },
+    // {
+    //   icon: <UserCircleIcon />,
+    //   name: "Gestion des rôles",
+    //   path: "/role-managment",
+    // },
 ];
 
 const reportingItems: NavItem[] = [
@@ -140,6 +151,9 @@ const othersItems: NavItem[] = [
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
   const location = useLocation();
+  // @ts-ignore
+  const { userInfo } = useAuth();
+  const userRole = userInfo?.role;
 
   const [openSubmenu, setOpenSubmenu] = useState<{
     type: "dashboard" | "complaints" |  "users" |  "reporting" | "others";
@@ -350,29 +364,50 @@ const AppSidebar: React.FC = () => {
       >
         <Link to="/">
           {isExpanded || isHovered || isMobileOpen ? (
-            <>
-              <img
-                className="dark:hidden"
-                src="/images/logo/main-logo.png"
-                alt="Logo"
-                width={200}
-                height={30}
-              />
-              <img
-                className="hidden dark:block"
-                src="/images/logo/outlined-logo.png"
-                alt="Logo"
-                width={200}
-                height={30}
-              />
-            </>
+            // @ts-ignore
+            userInfo?.school?.logo_url ? (
+                <img
+                  // @ts-ignore
+                  src={userInfo.school.logo_url}
+                  // @ts-ignore
+                  alt={userInfo.school.name || "Logo"}
+                  className="max-h-[60px] w-auto object-contain max-w-[200px]"
+                />
+            ) : (
+                <>
+                  <img
+                    className="dark:hidden"
+                    src="/images/logo/main-logo.png"
+                    alt="Logo"
+                    width={200}
+                    height={30}
+                  />
+                  <img
+                    className="hidden dark:block"
+                    src="/images/logo/outlined-logo.png"
+                    alt="Logo"
+                    width={200}
+                    height={30}
+                  />
+                </>
+            )
           ) : (
-            <img
-              src="/images/logo/main-logo.png"
-              alt="Logo"
-              width={60}
-              height={60}
-            />
+            // @ts-ignore
+            userInfo?.school?.logo_url ? (
+                <img
+                   // @ts-ignore
+                   src={userInfo.school.logo_url}
+                   alt="Logo"
+                   className="w-[50px] h-[50px] object-contain rounded-md bg-white p-1"
+                />
+            ) : (
+                <img
+                  src="/images/logo/main-logo.png"
+                  alt="Logo"
+                  width={60}
+                  height={60}
+                />
+            )
           )}
         </Link>
       </div>
@@ -410,27 +445,46 @@ const AppSidebar: React.FC = () => {
                   <HorizontaLDots className="size-6" />
                 )}
               </h2>
-              {renderMenuItems(navItems, "complaints")}
+              {renderMenuItems(navItems.filter(item => {
+                  // Admin voit tout
+                  if (userRole === 'admin') return true;
+                  
+                  // Écoles : seulement Admin
+                  if (item.name === "Écoles") return false;
+                  
+                  // Enseignant : restrictions supplémentaires
+                  if (userRole === 'enseignant') {
+                      // Masquer Finances
+                      if (item.name === "Finances / Écolage") return false;
+                      // Masquer Années Scolaires
+                      if (item.name === "Années Scolaires") return false;
+                      // Masquer Enseignants
+                      if (item.name === "Enseignants") return false;
+                  }
+                  
+                  return true;
+              }), "complaints")}
             </div>
-{/* 
+            {(userRole === 'admin' || userRole === 'directeur') && (
             <div>
               <h2
-                className={`mb-4 text-xs uppercase flex leading-[20px] text-black w-[290px] dark:text-white ${
+                className={`mb-4 text-xs uppercase flex leading-[20px] text-gray-400 dark:text-white ${
                   !isExpanded && !isHovered
                     ? "lg:justify-center"
                     : "justify-start"
                 }`}
               >
                 {isExpanded || isHovered || isMobileOpen ? (
-                  "Gestions des utilisateurs"
+                  "Gestion des utilisateurs"
                 ) : (
                   <HorizontaLDots className="size-6" />
                 )}
               </h2>
               {renderMenuItems(usersItems, "users")}
             </div>
+            )}
 
-            <div>
+            {/* <div>
               <h2
                 className={`mb-4 text-xs uppercase flex leading-[20px] text-black w-[290px] dark:text-white ${
                   !isExpanded && !isHovered
