@@ -8,6 +8,7 @@ import reportCardService from "../../api/services/reportCardService";
 import gradeService from "../../api/services/gradeService";
 import assignmentService from "../../api/services/assignmentService";
 import { useCustomModal } from "../../context/ModalContext";
+import paymentService from "../../api/services/paymentService";
 
 export default function StudentDetails() {
   const { id } = useParams<{ id: string }>();
@@ -19,6 +20,7 @@ export default function StudentDetails() {
   const [assignments, setAssignments] = useState<any[]>([]);
   const [grades, setGrades] = useState<any[]>([]);
   const [reportCards, setReportCards] = useState<any[]>([]);
+  const [paymentsData, setPaymentsData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -73,7 +75,7 @@ export default function StudentDetails() {
             assignmentItems = assignRes.data as any[];
           }
         } else if (assignRes.data && Array.isArray(assignRes.data.data)) {
-          assignmentItems = assignRes.data.data;
+            assignmentItems = assignRes.data.data;
         }
       }
       setAssignments(assignmentItems);
@@ -93,15 +95,14 @@ export default function StudentDetails() {
             gradeItems = gradeRes.data as any[];
           }
         } else if (gradeRes.data && Array.isArray(gradeRes.data.data)) {
-          gradeItems = gradeRes.data.data;
+            gradeItems = gradeRes.data.data;
         }
       }
       setGrades(gradeItems);
 
       // Fetch report cards
-      const reportRes = await reportCardService.getByStudent(parseInt(id!), {
-        school_year_id: selectedYear.id
-      });
+      // Fetch report cards
+      const reportRes = await reportCardService.list(parseInt(id!), selectedYear.id);
       
       let reportItems: any[] = [];
       if (reportRes && reportRes.success) {
@@ -112,6 +113,13 @@ export default function StudentDetails() {
         }
       }
       setReportCards(reportItems);
+
+      // Fetch payments
+      const paymentRes = await paymentService.getStudentPaymentDetails(parseInt(id!), selectedYear.id);
+      if (paymentRes && paymentRes.success) {
+          setPaymentsData(paymentRes.data);
+      }
+
     } catch (e) {
       console.error(e);
     } finally {
@@ -150,8 +158,8 @@ export default function StudentDetails() {
 
   const handleDownloadReportCard = async (reportCardId: number) => {
     try {
-      const blob = await reportCardService.download(reportCardId);
-      const url = window.URL.createObjectURL(blob);
+      const res = await reportCardService.download(reportCardId);
+      const url = window.URL.createObjectURL(res.data);
       const link = document.createElement('a');
       link.href = url;
       link.download = `bulletin-${student?.matricule}-${selectedYear?.label}.pdf`;
@@ -347,6 +355,66 @@ export default function StudentDetails() {
                     </div>
                   ))}
                 </div>
+              )}
+            </div>
+
+            {/* Payments Section */}
+            <div className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
+                Paiements - {selectedYear.label}
+              </h3>
+
+              {paymentsData ? (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Balance Summary */}
+                  <div className="bg-gray-50 p-4 rounded-xl dark:bg-gray-800">
+                    <h4 className="text-sm font-medium text-gray-500 mb-2">État financier</h4>
+                    <div className="space-y-2">
+                       <div className="flex justify-between">
+                        <span className="text-gray-600 dark:text-gray-400">Frais de scolarité:</span>
+                        <span className="font-semibold">{paymentsData.balance?.total_due} {paymentsData.balance?.currency}</span>
+                      </div>
+                      <div className="flex justify-between">
+                         <span className="text-gray-600 dark:text-gray-400">Total payé:</span>
+                         <span className="font-semibold text-green-600">{paymentsData.balance?.total_paid} {paymentsData.balance?.currency}</span>
+                      </div>
+                       <div className="flex justify-between border-t pt-2 mt-2">
+                         <span className="text-gray-800 dark:text-white font-bold">Reste à payer:</span>
+                         <span className={`font-bold ${paymentsData.balance?.balance > 0 ? 'text-red-500' : 'text-green-500'}`}>
+                           {paymentsData.balance?.balance} {paymentsData.balance?.currency}
+                         </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Payment History - Only show if there are payments */}
+                  {paymentsData.payments && paymentsData.payments.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-500 mb-2">Historique des versements</h4>
+                      <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
+                        {paymentsData.payments.map((payment: any) => (
+                          <div key={payment.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg dark:bg-gray-800">
+                            <div>
+                               <p className="text-sm font-medium text-gray-800 dark:text-white">
+                                 {payment.amount} {paymentsData.balance?.currency}
+                               </p>
+                               <div className="flex gap-2 text-xs text-gray-500">
+                                 <span>{new Date(payment.payment_date).toLocaleDateString()}</span>
+                                 <span>•</span>
+                                 <span>REF: {payment.reference}</span>
+                               </div>
+                            </div>
+                            <span className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded-full dark:bg-green-900 dark:text-green-300">
+                              {payment.type}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                 <div className="text-center py-4 text-gray-500">Chargement des données financières...</div>
               )}
             </div>
           </>

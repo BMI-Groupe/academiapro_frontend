@@ -1,6 +1,8 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router";
 import SignIn from "./pages/AuthPages/SignIn";
 import SignUp from "./pages/AuthPages/SignUp";
+import ForgotPassword from "./pages/AuthPages/ForgotPassword";
+import ResetPassword from "./pages/AuthPages/ResetPassword";
 import NotFound from "./pages/OtherPage/NotFound";
 import UserProfiles from "./pages/UserProfiles";
 import Videos from "./pages/UiElements/Videos";
@@ -43,6 +45,7 @@ import TeacherDetails from "./pages/teachers/TeacherDetails.tsx";
 import ClassroomDetails from "./pages/classrooms/ClassroomDetails.tsx";
 import ClassroomDetailPage from "./pages/classrooms/ClassroomDetailPage.tsx";
 import SubjectManagement from "./pages/subjects/SubjectManagement.tsx";
+import SubjectFormPage from "./pages/subjects/SubjectFormPage.tsx";
 import GradeManagement from "./pages/grades/GradeManagement.tsx";
 import GradeFormPage from "./pages/grades/GradeFormPage.tsx";
 import AssignmentManagement from "./pages/assignments/AssignmentManagement.tsx";
@@ -50,10 +53,37 @@ import AssignmentFormPage from "./pages/assignments/AssignmentFormPage.tsx";
 import ScheduleManagement from "./pages/schedules/ScheduleManagement.tsx";
 import ScheduleFormPage from "./pages/schedules/ScheduleFormPage.tsx";
 import SchoolYearManagement from "./pages/school-years/SchoolYearManagement.tsx";
+import SchoolYearFormPage from "./pages/school-years/SchoolYearFormPage.tsx";
 import EvaluationTypeManagement from "./pages/evaluations/EvaluationTypeManagement.tsx";
+import PaymentManagement from "./pages/payments/PaymentManagement.tsx";
+import PaymentFormPage from "./pages/payments/PaymentFormPage.tsx";
+import SchoolManagement from "./pages/schools/SchoolManagement.tsx";
+import SchoolFormPage from "./pages/schools/SchoolFormPage.tsx";
 import { SchoolYearProvider } from "./context/SchoolYearContext.tsx";
+import ReceiptPage from "./pages/payments/ReceiptPage.tsx";
+import UserManagement from "./pages/users/UserManagement.tsx";
+import ReportCardPage from "./pages/reports/ReportCardPage.tsx";
+
+import { useEffect } from "react";
+import useAuth from "./providers/auth/useAuth.ts";
 
 export default function App() {
+  // @ts-ignore
+  const { authMe, isLoading, accessToken } = useAuth();
+
+  useEffect(() => {
+    const refreshToken = async () => {
+        if (!isLoading && accessToken) {
+            try {
+                await authMe();
+            } catch (e) {
+                // Ignore errors
+                console.error("Auto-refresh failed", e);
+            }
+        }
+    };
+    refreshToken();
+  }, [isLoading, accessToken]);
 
   return (
       <>
@@ -87,6 +117,8 @@ export default function App() {
                     <Route path="/teachers/:id/edit" element={<TeacherFormPage />} />
                     <Route path="/teachers/:id/details" element={<TeacherDetails />} />
                     <Route path="/subjects" element={<SubjectManagement />} />
+                    <Route path="/subjects/new" element={<SubjectFormPage />} />
+                    <Route path="/subjects/:id/edit" element={<SubjectFormPage />} />
                     <Route path="/grades" element={<GradeManagement />} />
                     <Route path="/grades/new" element={<GradeFormPage />} />
                     <Route path="/grades/edit" element={<GradeFormPage />} />
@@ -97,7 +129,20 @@ export default function App() {
                     <Route path="/schedules/new" element={<ScheduleFormPage />} />
                     <Route path="/schedules/edit" element={<ScheduleFormPage />} />
                     <Route path="/school-years" element={<SchoolYearManagement />} />
+                    <Route path="/school-years/new" element={<SchoolYearFormPage />} />
+                    <Route path="/school-years/:id/edit" element={<SchoolYearFormPage />} />
                     <Route path="/evaluation-types" element={<EvaluationTypeManagement />} />
+                    <Route path="/payments" element={<PaymentManagement />} />
+                    <Route path="/payments/new" element={<PaymentFormPage />} />
+                    <Route path="/payments/:id/receipt" element={<ReceiptPage />} />
+                    
+                    {/* Report Cards */}
+                    <Route path="/report-cards/:id" element={<ReportCardPage />} />
+                    
+                    {/* Schools Management */}
+                    <Route path="/schools" element={<SchoolManagement />} />
+                    <Route path="/schools/new" element={<SchoolFormPage />} />
+                    <Route path="/schools/:id/edit" element={<SchoolFormPage />} />
 
                     {/* Complaints Page */}
                     <Route path="/complaints" element={<ComplaintsTables />} />
@@ -105,7 +150,7 @@ export default function App() {
                     {/*<Route path="/complaints-types" element={<ReportsTables />} />*/}
 
                     {/* Users Page */}
-                    <Route path="/users" element={<UsersTables />} />
+                    <Route path="/users" element={<UserManagement />} />
                     <Route path="/create-user" element={<AddUserFormElements />} />
                     <Route path="/role-managment" element={<UsersRolesTables />} />
 
@@ -142,6 +187,8 @@ export default function App() {
                 {/* Auth Layout */}
                 <Route path="/signin" element={<SignIn />} />
                 <Route path="/signup" element={<SignUp />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
 
                 {/* Fallback Route */}
                 <Route path="*" element={<NotFound />} />

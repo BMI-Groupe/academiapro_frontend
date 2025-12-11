@@ -1,134 +1,148 @@
 import Chart from "react-apexcharts";
 import { ApexOptions } from "apexcharts";
 
-export default function StatisticsChart() {
+interface StatisticsChartProps {
+    data: {
+        categories: string[];
+        series: {
+            name: string;
+            data: number[];
+        }[];
+    } | null;
+    loading?: boolean;
+}
+
+export default function StatisticsChart({ data, loading }: StatisticsChartProps) {
+  
   const options: ApexOptions = {
     legend: {
-      show: false, // Hide legend
+      show: true,
       position: "top",
       horizontalAlign: "left",
     },
-    colors: ["#26a08d", "#59bb1c"], // Define line colors
+    colors: ["#3C50E0", "#80CAEE"],
     chart: {
-      fontFamily: "Outfit, sans-serif",
-      height: 310,
-      type: "line", // Set the chart type to 'line'
+      fontFamily: "Satoshi, sans-serif",
+      height: 335,
+      type: "area",
+      dropShadow: {
+        enabled: true,
+        color: "#623CEA14",
+        top: 10,
+        blur: 4,
+        left: 0,
+        opacity: 0.1,
+      },
       toolbar: {
-        show: false, // Hide chart toolbar
+        show: false,
       },
     },
+    responsive: [
+      {
+        breakpoint: 1024,
+        options: {
+          chart: {
+            height: 300,
+          },
+        },
+      },
+      {
+        breakpoint: 1366,
+        options: {
+          chart: {
+            height: 350,
+          },
+        },
+      },
+    ],
     stroke: {
-      curve: "straight", // Define the line style (straight, smooth, or step)
-      width: [2, 2], // Line width for each dataset
-    },
-
-    fill: {
-      type: "gradient",
-      gradient: {
-        opacityFrom: 0.55,
-        opacityTo: 0,
-      },
-    },
-    markers: {
-      size: 0, // Size of the marker points
-      strokeColors: "#fff", // Marker border color
-      strokeWidth: 2,
-      hover: {
-        size: 6, // Marker size on hover
-      },
+      width: [2, 2],
+      curve: "straight",
     },
     grid: {
       xaxis: {
         lines: {
-          show: false, // Hide grid lines on x-axis
+          show: true,
         },
       },
       yaxis: {
         lines: {
-          show: true, // Show grid lines on y-axis
+          show: true,
         },
       },
     },
     dataLabels: {
-      enabled: false, // Disable data labels
+      enabled: false,
     },
-    tooltip: {
-      enabled: true, // Enable tooltip
-      x: {
-        format: "dd MMM yyyy", // Format for x-axis tooltip
+    markers: {
+      size: 4,
+      colors: "#fff",
+      strokeColors: ["#3056D3", "#80CAEE"],
+      strokeWidth: 3,
+      strokeOpacity: 0.9,
+      strokeDashArray: 0,
+      fillOpacity: 1,
+      discrete: [],
+      hover: {
+        size: undefined,
+        sizeOffset: 5,
       },
     },
     xaxis: {
-      type: "category", // Category-based x-axis
-      categories: [
-        "Jan",
-        "Fev",
-        "Mar",
-        "Avr",
-        "Mai",
-        "Jun",
-        "Jul",
-        "Aou",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
-      ],
+      type: "category",
+      categories: data?.categories || [],
       axisBorder: {
-        show: false, // Hide x-axis border
+        show: false,
       },
       axisTicks: {
-        show: false, // Hide x-axis ticks
-      },
-      tooltip: {
-        enabled: false, // Disable tooltip for x-axis points
+        show: false,
       },
     },
     yaxis: {
-      labels: {
-        style: {
-          fontSize: "12px", // Adjust font size for y-axis labels
-          colors: ["#6B7280"], // Color of the labels
-        },
-      },
       title: {
-        text: "", // Remove y-axis title
         style: {
           fontSize: "0px",
         },
       },
+      min: 0,
     },
   };
 
-  const series = [
-    {
-      name: "Plaintes",
-      data: [180, 190, 170, 160, 175, 165, 170, 205, 230, 210, 240, 235],
-    },
-    {
-      name: "Rapports",
-      data: [40, 30, 50, 40, 55, 40, 70, 100, 110, 120, 150, 140],
-    },
-  ];
+  const series = data?.series || [{name: 'Inscriptions', data: []}, {name: 'Paiements', data: []}];
+
+  if (loading) {
+      return (
+          <div className="rounded-2xl border border-gray-200 bg-white px-5 pt-7 pb-5 shadow-default dark:border-gray-800 dark:bg-gray-900 sm:px-7.5 animate-pulse h-[350px]">
+              <div className="h-6 w-1/3 bg-gray-200 dark:bg-gray-700 mb-8 rounded"></div>
+              <div className="h-4/5 bg-gray-100 dark:bg-gray-800 rounded"></div>
+          </div>
+      );
+  }
+
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white px-5 pb-5 pt-5 dark:border-gray-800 dark:bg-white/[0.03] sm:px-6 sm:pt-6">
-      <div className="flex flex-col gap-5 mb-6 sm:flex-row sm:justify-between">
-        <div className="w-full">
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-            Statistiques
-          </h3>
-          <p className="mt-1 text-gray-500 text-theme-sm dark:text-gray-400">
-            Vue globale sur les activités annuelles
-          </p>
-        </div>
-        <div className="flex items-start w-full gap-3 sm:justify-end">
-          {/*<ChartTab />*/}
+    <div className="rounded-2xl border border-gray-200 bg-white px-5 pt-7 pb-5 shadow-default dark:border-gray-800 dark:bg-gray-900 sm:px-7.5">
+      <div className="flex flex-wrap items-start justify-between gap-3 sm:flex-nowrap">
+        <div className="flex w-full flex-wrap gap-3 sm:gap-5">
+          <div className="flex min-w-47.5">
+            <span className="mt-1 mr-2 flex h-4 w-full max-w-4 items-center justify-center rounded-full border border-primary">
+              <span className="block h-2.5 w-full max-w-2.5 rounded-full bg-primary"></span>
+            </span>
+            <div className="w-full">
+              <p className="font-semibold text-primary">Aperçu Annuel</p>
+              <p className="text-sm font-medium">Inscriptions & Paiements</p>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="max-w-full overflow-x-auto custom-scrollbar">
-        <div className="min-w-[1000px] xl:min-w-full">
-          <Chart options={options} series={series} type="area" height={310} />
+      <div>
+        <div id="chartOne" className="-ml-5">
+          <Chart
+            options={options}
+            series={series}
+            type="area"
+            height={350}
+          />
         </div>
       </div>
     </div>

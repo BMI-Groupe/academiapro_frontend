@@ -45,10 +45,13 @@ export default function AuthProvider({ children }) {
     }, []);
 
     const login = async (phone, password, navigate) => {
+        // console.log("AuthProvider.login appelé avec:", phone);
         try {
+            // console.log("Envoi de la requête POST /login...");
             const res = await axiosInstance.post("/login", { phone, password });
-            console.log("LOGIN DATA: ");
-            console.log(res.data);
+            // console.log("Réponse reçue:");
+            // console.log("LOGIN DATA: ");
+            // console.log(res.data);
 
             if (res.data.success === true) {
                 // data is an array with one element containing user and tokens
@@ -57,12 +60,14 @@ export default function AuthProvider({ children }) {
                 const tokens = loginData.tokens;
 
                 setUserInfo(u);
+                setUserData(u);
                 setRefreshToken(tokens.refreshToken);
                 setAccessToken(tokens.accessToken);
 
                 localStorage.setItem("accessToken", tokens.accessToken);
                 localStorage.setItem("refreshToken", tokens.refreshToken);
                 localStorage.setItem("userInfo", JSON.stringify(u));
+                localStorage.setItem("userData", JSON.stringify(u));
 
                 console.log("Connexion réussie !");
             } else {
@@ -73,6 +78,7 @@ export default function AuthProvider({ children }) {
         } catch (err) {
             // @ts-ignore
             console.error("Login error", err.response?.data || err.message);
+            console.error("Erreur complète:", err);
             
             // Extract error details from backend response
             // @ts-ignore
@@ -88,9 +94,10 @@ export default function AuthProvider({ children }) {
                 // @ts-ignore
             } else if (err.request) {
                 // Request was made but no response received (network error)
+                console.error("Aucune réponse du serveur. Vérifiez que le backend est démarré sur http://127.0.0.1:8000");
                 return {
                     success: false,
-                    message: "Impossible de contacter le serveur. Veuillez vérifier votre connexion.",
+                    message: "Impossible de contacter le serveur backend.\n\nVérifiez que le serveur Laravel est démarré :\n1. Ouvrez un terminal dans le dossier 'backend'\n2. Exécutez : php artisan serve\n3. Réessayez la connexion",
                     status: 0
                 };
             } else {
@@ -107,7 +114,7 @@ export default function AuthProvider({ children }) {
 
     const authMe = async (id: any) => {
         try {
-            console.log("Access Token", accessToken);
+            // console.log("Access Token", accessToken);
             const user = await axiosInstance.get(`/me`, {
                 headers: {
                     Authorization: `Bearer ${accessToken}`,
@@ -117,7 +124,7 @@ export default function AuthProvider({ children }) {
             setUserData(u);
             localStorage.setItem("userData", JSON.stringify(u));
 
-            console.log("Connecté !");
+            // console.log("Connecté !");
         } catch (error) {
             // @ts-ignore
             console.error("Error", error.response?.data || error.message);
@@ -135,7 +142,7 @@ export default function AuthProvider({ children }) {
             setUserInfo(userInfo);
             localStorage.setItem("userInfo", JSON.stringify(userInfo));
 
-            console.log("Récupérée !");
+            // console.log("Récupérée !");
         } catch (err) {
             // @ts-ignore
             console.error("Error", err.response?.data || err.message);

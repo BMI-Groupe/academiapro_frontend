@@ -7,6 +7,7 @@ import Input from "../../components/form/input/InputField";
 import Label from "../../components/form/Label";
 import { useCustomModal } from "../../context/ModalContext";
 import assignmentService from "../../api/services/assignmentService";
+import DatePicker from "../../components/form/date-picker";
 import classroomService from "../../api/services/classroomService";
 import schoolYearService from "../../api/services/schoolYearService";
 import { useActiveSchoolYear } from "../../context/SchoolYearContext";
@@ -29,6 +30,7 @@ export default function AssignmentFormPage() {
     due_date: "",
     classroom_id: "",
     school_year_id: "",
+    period: "",
   });
 
   const assignmentId = searchParams.get("id");
@@ -124,11 +126,17 @@ export default function AssignmentFormPage() {
 
 
   const loadAssignment = async () => {
+    setLoading(true);
     try {
       const res = await assignmentService.get(parseInt(assignmentId!));
+      console.log('Assignment API response:', res);
+      
       if (res?.success) {
-        const assignment = res.data;
-        setForm({
+        // Handle nested data structure (data might be in res.data[0] or res.data)
+        const assignment = Array.isArray(res.data) ? res.data[0] : res.data;
+        console.log('Assignment data:', assignment);
+        
+        const formData = {
           title: assignment.title || "",
           description: assignment.description || "",
           type: assignment.type || "",
@@ -138,10 +146,21 @@ export default function AssignmentFormPage() {
           due_date: assignment.due_date || "",
           classroom_id: assignment.classroom_id?.toString() || "",
           school_year_id: assignment.school_year_id?.toString() || "",
-        });
+          period: assignment.period?.toString() || "",
+        };
+        
+        console.log('Setting form data:', formData);
+        setForm(formData);
       }
     } catch (e) {
-      console.error(e);
+      console.error('Error loading assignment:', e);
+      openModal({
+        title: "Erreur",
+        description: "Impossible de charger les détails de l'examen/devoir.",
+        variant: "error",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -170,6 +189,7 @@ export default function AssignmentFormPage() {
         due_date: form.due_date,
         classroom_id: parseInt(form.classroom_id),
         school_year_id: parseInt(form.school_year_id),
+        period: parseInt(form.period),
       };
 
       if (isEdit) {
@@ -227,6 +247,27 @@ export default function AssignmentFormPage() {
                     {year.label}
                   </option>
                 ))}
+              </select>
+            </div>
+
+            <div className="md:col-span-2">
+              <Label>Période *</Label>
+              <select
+                value={form.period}
+                onChange={(e) => setForm({ ...form, period: e.target.value })}
+                className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent px-4 py-2.5 text-sm dark:bg-gray-900 dark:text-white/90"
+                required
+              >
+                <option value="">Sélectionner une période</option>
+                <optgroup label="Trimestres">
+                  <option value="1">Trimestre 1</option>
+                  <option value="2">Trimestre 2</option>
+                  <option value="3">Trimestre 3</option>
+                </optgroup>
+                <optgroup label="Semestres">
+                  <option value="1">Semestre 1</option>
+                  <option value="2">Semestre 2</option>
+                </optgroup>
               </select>
             </div>
 
@@ -312,29 +353,31 @@ export default function AssignmentFormPage() {
             </div>
 
             <div>
-              <Label>Date de début *</Label>
-              <Input
-                type="date"
-                value={form.start_date}
-                onChange={(e) => setForm({ ...form, start_date: e.target.value })}
+              <DatePicker
+                id="start_date"
+                label="Date de début *"
+                placeholder="Sélectionner une date"
+                defaultDate={form.start_date}
+                onChange={(dates, dateStr) => setForm({ ...form, start_date: dateStr })}
               />
             </div>
 
             <div>
-              <Label>Date d'échéance *</Label>
-              <Input
-                type="date"
-                value={form.due_date}
-                onChange={(e) => setForm({ ...form, due_date: e.target.value })}
+              <DatePicker
+                id="due_date"
+                label="Date d'échéance *"
+                placeholder="Sélectionner une date"
+                defaultDate={form.due_date}
+                onChange={(dates, dateStr) => setForm({ ...form, due_date: dateStr })}
               />
             </div>
           </div>
 
           <div className="flex justify-end gap-3 pt-4">
-            <Button variant="outline" onClick={() => navigate("/assignments")}>
+            <Button type="button" variant="outline" onClick={() => navigate("/assignments")}>
               Annuler
             </Button>
-            <Button disabled={loading}>
+            <Button type="submit" disabled={loading}>
               {loading ? "Enregistrement..." : isEdit ? "Mettre à jour" : "Créer"}
             </Button>
           </div>

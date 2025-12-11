@@ -8,6 +8,7 @@ import Label from "../../components/form/Label";
 import studentService from "../../api/services/studentService";
 import classroomService from "../../api/services/classroomService";
 import { useCustomModal } from "../../context/ModalContext";
+import DatePicker from "../../components/form/date-picker";
 
 interface StudentForm {
   first_name: string;
@@ -276,13 +277,12 @@ export default function StudentFormPage() {
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <Label htmlFor="student-birth-date">Date de naissance</Label>
-                  <Input
+                  <DatePicker 
                     id="student-birth-date"
-                    type="date"
-                    value={form.birth_date}
-                    onChange={(e) => handleChange("birth_date", e.target.value)}
-                    disabled={submitting}
+                    label="Date de naissance"
+                    placeholder="Sélectionner une date"
+                    defaultDate={form.birth_date}
+                    onChange={(dates, dateStr) => handleChange("birth_date", dateStr)}
                   />
                 </div>
 

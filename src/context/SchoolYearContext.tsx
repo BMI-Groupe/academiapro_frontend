@@ -26,7 +26,6 @@ export const SchoolYearProvider: React.FC<{ children: ReactNode }> = ({ children
   const [error, setError] = useState<string | null>(null);
 
   const fetchActiveSchoolYear = async () => {
-    // Ne pas charger si pas de token (utilisateur non connecté)
     const token = localStorage.getItem('token');
     if (!token) {
       setLoading(false);
@@ -36,26 +35,37 @@ export const SchoolYearProvider: React.FC<{ children: ReactNode }> = ({ children
     setLoading(true);
     setError(null);
     try {
-      const res = await schoolYearService.getActive();
-      if (res && res.success && res.data) {
-        // Gérer la structure de réponse imbriquée
-        let yearData = null;
+      // On utilise list() car il est plus fiable et on filtre nous-même
+      const res = await schoolYearService.list();
+      
+      if (res && res.success) {
+        let items: any[] = [];
+        
+        // Gestion robuste structure API (similaire aux pages Management)
         if (Array.isArray(res.data)) {
-          if (res.data[0] && !Array.isArray(res.data[0])) {
-            yearData = res.data[0];
-          }
-        } else {
-          yearData = res.data;
+           if (Array.isArray(res.data[0])) {
+               items = res.data[0];
+           } else {
+               items = res.data;
+           }
+        } else if (res.data?.data) {
+           items = res.data.data;
         }
-        setActiveSchoolYear(yearData);
-      } else {
-        setError('Aucune année scolaire active trouvée.');
+
+        // Trouver l'année active (is_active === 1 ou true)
+        // On vérifie les deux types (booléen ou entier)
+        const active = items.find((y: any) => y.is_active === true || y.is_active === 1);
+
+        if (active) {
+            setActiveSchoolYear(active);
+        } else {
+            setActiveSchoolYear(null);
+            // Pas une erreur critique, juste pas d'année active définie
+        }
       }
     } catch (err: any) {
-      // Ne pas afficher d'erreur si c'est une erreur 401 (non authentifié)
       if (err?.response?.status !== 401) {
-        console.error('Erreur lors du chargement de l\'année scolaire active:', err);
-        setError(err?.response?.data?.message || 'Erreur lors du chargement de l\'année scolaire active.');
+        console.error('Erreur contexte année:', err);
       }
     } finally {
       setLoading(false);

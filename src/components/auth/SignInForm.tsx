@@ -7,7 +7,7 @@ import Checkbox from "../form/input/Checkbox";
 import Button from "../ui/button/Button";
 import useAuth from "../../providers/auth/useAuth.ts";
 import {useCustomModal} from "../../context/ModalContext.tsx";
-import { useActiveSchoolYear } from "../../context/SchoolYearContext.tsx";
+import PWAInstallPrompt from "../common/PWAInstallPrompt";
 
 export default function SignInForm() {
   const [showPassword, setShowPassword] = useState(false);
@@ -15,18 +15,21 @@ export default function SignInForm() {
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   // @ts-ignore
   const { login, getUserInfos } = useAuth();
   const navigate = useNavigate();
   const { openModal } = useCustomModal();
-  const { refreshActiveSchoolYear } = useActiveSchoolYear();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log(username, password);
+    // console.log("Tentative de connexion:", username);
+    setIsLoading(true);
+    
     try {
       const req = await login(username, password);
+      // console.log("Réponse login:", req);
 
       // Check if login returned an error object
       if (!req || req.success === false) {
@@ -52,13 +55,14 @@ export default function SignInForm() {
           primaryLabel: "Réessayer",
         });
       } else {
-        // Login successful - refresh school year data
-        console.log("Succès de connexion");
-        await refreshActiveSchoolYear();
+        // Login successful - navigate to home
+        // The SchoolYearProvider will automatically load the active year when the app mounts
+        // console.log("Succès de connexion, redirection...");
         navigate("/");
       }
 
     } catch (err) {
+      console.error("Erreur catch:", err);
       // Fallback error handling
       openModal({
         title: "Erreur inattendue",
@@ -66,6 +70,8 @@ export default function SignInForm() {
         variant: "error",
         primaryLabel: "Réessayer",
       });
+    } finally {
+        setIsLoading(false);
     }
   };
 
@@ -81,6 +87,7 @@ export default function SignInForm() {
         </Link> */}
       </div>
       <div className="flex flex-col justify-center flex-1 w-full max-w-md mx-auto">
+        <PWAInstallPrompt />
         <div>
           <div className="mb-5 sm:mb-8">
             <h1 className="mb-2 font-semibold text-gray-800 text-title-sm dark:text-white/90 sm:text-title-md">
@@ -135,15 +142,15 @@ export default function SignInForm() {
                     </span>
                   </div>
                   <Link
-                    to="/reset-password"
+                    to="/forgot-password"
                     className="text-sm text-brand-500 hover:text-brand-600 dark:text-brand-400"
                   >
                     Mot de passe oublié?
                   </Link>
                 </div>
                 <div>
-                  <Button type="submit" className="w-full" size="sm">
-                    Connexion
+                  <Button type="submit" className="w-full" size="sm" disabled={isLoading}>
+                    {isLoading ? "Connexion en cours..." : "Connexion"}
                   </Button>
                 </div>
               </div>

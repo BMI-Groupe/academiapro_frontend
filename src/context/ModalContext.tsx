@@ -8,7 +8,7 @@ type ModalProps = {
     description?: string;
     content?: ModalContent;
     /** visual variant: error | success | info */
-    variant?: "error" | "success" | "info";
+    variant?: "error" | "success" | "info" | "warning" | "danger";
     /** primary action button */
     primaryLabel?: string;
     primaryAction?: () => void;

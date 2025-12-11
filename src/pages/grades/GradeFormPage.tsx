@@ -13,6 +13,7 @@ import subjectService from "../../api/services/subjectService";
 import schoolYearService from "../../api/services/schoolYearService";
 import { useActiveSchoolYear } from "../../context/SchoolYearContext";
 import { useMemo } from "react";
+import SearchableSelect from "../../components/form/SearchableSelect";
 
 export default function GradeFormPage() {
   const navigate = useNavigate();
@@ -156,26 +157,44 @@ export default function GradeFormPage() {
     }
   };
 
+
   const loadGrade = async () => {
+    setLoading(true);
     try {
       const res = await gradeService.get(parseInt(gradeId!));
+      console.log('Grade API response:', res);
+      
       if (res?.success) {
-        const grade = res.data[0];
-        setForm({
+        // Handle nested data structure
+        const grade = Array.isArray(res.data) ? res.data[0] : res.data;
+        console.log('Grade data:', grade);
+        
+        const formData = {
           student_id: grade.student_id?.toString() || "",
           subject_id: grade.assignment?.subject_id?.toString() || "",
           assignment_id: grade.assignment_id?.toString() || "",
           school_year_id: grade.assignment?.school_year_id?.toString() || "",
           score: grade.score?.toString() || "",
           notes: grade.notes || "",
-        });
+        };
         
+        console.log('Setting form data:', formData);
+        setForm(formData);
+        
+        // Load assignments for the school year
         if (grade.assignment?.school_year_id) {
-          loadAssignments(grade.assignment.school_year_id.toString());
+          await loadAssignments(grade.assignment.school_year_id.toString());
         }
       }
     } catch (e) {
-      console.error(e);
+      console.error('Error loading grade:', e);
+      openModal({
+        title: "Erreur",
+        description: "Impossible de charger les détails de la note.",
+        variant: "error",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -265,19 +284,17 @@ export default function GradeFormPage() {
 
             <div>
               <Label>Élève *</Label>
-              <select
+              <SearchableSelect
+                options={students.map((student) => ({
+                  value: student.id.toString(),
+                  label: `${student.first_name} ${student.last_name} (${student.matricule})`,
+                }))}
                 value={form.student_id}
-                onChange={(e) => setForm({ ...form, student_id: e.target.value })}
-                className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent px-4 py-2.5 text-sm dark:bg-gray-900 dark:text-white/90"
+                onChange={(value) => setForm({ ...form, student_id: value })}
+                placeholder="Sélectionner un élève"
+                searchPlaceholder="Rechercher un élève..."
                 required
-              >
-                <option value="">Sélectionner un élève</option>
-                {students.map((student) => (
-                  <option key={student.id} value={student.id}>
-                    {student.first_name} {student.last_name} ({student.matricule})
-                  </option>
-                ))}
-              </select>
+              />
             </div>
 
             <div>

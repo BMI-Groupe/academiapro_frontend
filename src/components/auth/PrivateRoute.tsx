@@ -6,7 +6,7 @@ export default function PrivateRoute() {
     const { userInfo, userData, accessToken, refreshToken, isLoading } = useAuth();
 
     // console.log('user:', userInfo);
-    console.log('userData:', userData);
+    // console.log('userData:', userData);
     // console.log('isLoading:', isLoading);
 
     if (isLoading) {

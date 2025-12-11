@@ -2,14 +2,20 @@ import ComponentCard from "../../common/ComponentCard";
 import { useDropzone } from "react-dropzone";
 // import Dropzone from "react-dropzone";
 
-const DropzoneComponent: React.FC = () => {
+interface DropzoneComponentProps {
+  onFileSelect: (file: File) => void;
+}
+
+const DropzoneComponent: React.FC<DropzoneComponentProps> = ({ onFileSelect }) => {
   const onDrop = (acceptedFiles: File[]) => {
-    console.log("Files dropped:", acceptedFiles);
-    // Handle file uploads here
+    if (acceptedFiles && acceptedFiles.length > 0) {
+       onFileSelect(acceptedFiles[0]);
+    }
   };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
+    maxFiles: 1,
     accept: {
       "image/png": [],
       "image/jpeg": [],
@@ -56,15 +62,15 @@ const DropzoneComponent: React.FC = () => {
 
             {/* Text Content */}
             <h4 className="mb-3 font-semibold text-gray-800 text-theme-xl dark:text-white/90">
-              {isDragActive ? "Drop Files Here" : "Drag & Drop Files Here"}
+              {isDragActive ? "Déposez les fichiers ici" : "Glissez & Déposez l'image ici"}
             </h4>
 
             <span className=" text-center mb-5 block w-full max-w-[290px] text-sm text-gray-700 dark:text-gray-400">
-              Drag and drop your PNG, JPG, WebP, SVG images here or browse
+              Glissez et déposez votre image PNG, JPG, WebP ou SVG ici ou cliquez pour parcourir
             </span>
 
             <span className="font-medium underline text-theme-sm text-brand-500">
-              Browse File
+              Parcourir
             </span>
           </div>
         </form>

@@ -6,89 +6,78 @@ import Button from "../../components/ui/button/Button";
 import DataTable from "../../components/common/DataTable";
 import { useCustomModal } from "../../context/ModalContext";
 import teacherService from "../../api/services/teacherService";
-import schoolYearService from "../../api/services/schoolYearService";
-import { useActiveSchoolYear } from "../../context/SchoolYearContext";
-import SchoolYearFilter from "../../components/common/SchoolYearFilter";
-import ActiveSchoolYearAlert from "../../components/common/ActiveSchoolYearAlert";
 
 export default function TeacherManagement() {
   const navigate = useNavigate();
   const { openModal } = useCustomModal();
-  const { activeSchoolYear } = useActiveSchoolYear();
+  
   const [teachers, setTeachers] = useState<any[]>([]);
-  const [schoolYears, setSchoolYears] = useState<any[]>([]);
-  const [selectedYear, setSelectedYear] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
-  const fetchTeachers = async () => {
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [perPage, setPerPage] = useState(15);
+  const [totalItems, setTotalItems] = useState(0);
+
+  const fetchTeachers = async (page = 1) => {
     setLoading(true);
     try {
-      const res = await teacherService.list({ school_year_id: selectedYear?.id });
-      if (res.success) {
+      const res = await teacherService.list({ 
+          page: page,
+          per_page: perPage
+      });
+      
+      if (res && res.success) {
         let items: any[] = [];
-        if (Array.isArray(res.data)) {
-          if (res.data[0] && Array.isArray(res.data[0].data)) {
-            items = res.data[0].data;
-          } else {
-            items = res.data as any[];
-          }
-        } else if (res.data && Array.isArray(res.data.data)) {
-          items = res.data.data;
+        let meta: any = {};
+
+        // Gestion normalisée de la pagination Laravel
+        const responseData = Array.isArray(res.data) ? res.data[0] : res.data;
+
+        if (responseData && typeof responseData === 'object') {
+             if (Array.isArray(responseData.data)) {
+                 items = responseData.data;
+                 meta = responseData; // current_page, last_page, total, etc.
+             } else {
+                 items = Array.isArray(responseData) ? responseData : [];
+             }
+        } else {
+             items = Array.isArray(res.data) ? res.data : [];
         }
 
         setTeachers(items || []);
+        
+        if (meta.current_page) {
+            setCurrentPage(meta.current_page);
+            setTotalPages(meta.last_page);
+            setTotalItems(meta.total);
+            setPerPage(meta.per_page);
+        } else {
+            setCurrentPage(1);
+            setTotalPages(1);
+            setTotalItems(items.length);
+        }
       } else {
         setTeachers([]);
+        setTotalItems(0);
       }
     } catch (e) {
       console.error(e);
       setTeachers([]);
+      setTotalItems(0);
     } finally {
       setLoading(false);
     }
   };
 
-  const loadSchoolYears = async () => {
-    try {
-      const res = await schoolYearService.list();
-      if (res && res.success) {
-        let items: any[] = [];
-        if (Array.isArray(res.data)) {
-          // Check if the first element is a paginator object (has .data array)
-          if (res.data[0] && Array.isArray(res.data[0].data)) {
-            items = res.data[0].data;
-          } 
-          // Check if the first element is the array of items itself (non-paginated case)
-          else if (res.data[0] && Array.isArray(res.data[0])) {
-            items = res.data[0];
-          }
-          // Fallback: assume res.data is the list (though unlikely given the controller)
-          else {
-            items = res.data as any[];
-          }
-        } else if (res.data && Array.isArray(res.data.data)) {
-          items = res.data.data;
-        }
-        setSchoolYears(items || []);
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
   useEffect(() => {
-    loadSchoolYears();
+    fetchTeachers(1);
   }, []);
 
-  useEffect(() => {
-    if (activeSchoolYear && !selectedYear) {
-      setSelectedYear(activeSchoolYear);
-    }
-  }, [activeSchoolYear]);
-
-  useEffect(() => {
-    fetchTeachers();
-  }, [selectedYear]);
+  const handlePageChange = (page: number) => {
+      fetchTeachers(page);
+  };
 
   const handleNavigateToCreate = () => {
     navigate("/teachers/new");
@@ -116,7 +105,7 @@ export default function TeacherManagement() {
             description: "Enseignant supprimé avec succès.",
             variant: "success",
           });
-          await fetchTeachers();
+          await fetchTeachers(currentPage);
         } catch (e) {
           console.error(e);
           openModal({
@@ -135,16 +124,7 @@ export default function TeacherManagement() {
       <PageBreadcrumb pageTitle="Gestion des Enseignants" />
 
       <div className="space-y-6">
-        <ActiveSchoolYearAlert />
-
-        <div className="flex justify-between items-start gap-4">
-          <SchoolYearFilter
-            value={selectedYear}
-            onChange={setSelectedYear}
-            years={schoolYears}
-            loading={loading}
-            className="w-64"
-          />
+        <div className="flex justify-end items-center gap-4">
           <Button onClick={handleNavigateToCreate}>+ Ajouter un enseignant</Button>
         </div>
 
@@ -161,6 +141,14 @@ export default function TeacherManagement() {
           onView={handleNavigateToDetails}
           onEdit={handleNavigateToEdit}
           onDelete={handleDelete}
+          
+          pagination={{
+              currentPage: currentPage,
+              totalPages: totalPages,
+              totalItems: totalItems,
+              perPage: perPage,
+              onPageChange: handlePageChange
+          }}
         />
       </div>
     </>

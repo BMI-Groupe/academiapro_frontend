@@ -23,10 +23,11 @@ export default function TeacherDetails() {
     try {
       const res = await teacherService.get(parseInt(id!));
       if (res && res.success) {
-        setTeacher(res.data);
-        // Assignments would be classroom-subject-teacher relationships
-        if (res.data.classroom_subject_teachers) {
-          setAssignments(res.data.classroom_subject_teachers);
+        const data = Array.isArray(res.data) ? res.data[0] : res.data;
+        setTeacher(data);
+        // Assignments from the exposed relationship
+        if (data.classroom_subject_teachers) {
+          setAssignments(data.classroom_subject_teachers);
         }
       }
     } catch (e) {

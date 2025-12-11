@@ -1,0 +1,15 @@
+﻿src/components/form/form-elements/UserInputs.tsx(44,81): error TS2339: Property 'data' does not exist on type 'never'.
+src/pages/assignments/AssignmentManagement.tsx(20,11): error TS2339: Property 'userInfo' does not exist on type 'null'.
+src/pages/classrooms/ClassroomManagement.tsx(20,11): error TS2339: Property 'userInfo' does not exist on type 'null'.
+src/pages/schedules/ScheduleManagement.tsx(32,11): error TS2339: Property 'userInfo' does not exist on type 'null'.
+src/pages/schools/SchoolFormPage.tsx(128,31): error TS2322: Type '"warning"' is not assignable to type '"success" | "error" | "info" | undefined'.
+src/pages/students/StudentDetails.tsx(104,49): error TS2339: Property 'getByStudent' does not exist on type '{ get: (id: number) => Promise<AxiosResponse<any, any>>; list: (studentId: number, schoolYearId?: number | undefined) => Promise<AxiosResponse<any, any>>; download: (id: number) => Promise<...>; update: (id: number, data: any) => Promise<...>; }'.
+src/pages/students/StudentDetails.tsx(141,35): error TS2339: Property 'generate' does not exist on type '{ get: (id: number) => Promise<AxiosResponse<any, any>>; list: (studentId: number, schoolYearId?: number | undefined) => Promise<AxiosResponse<any, any>>; download: (id: number) => Promise<...>; update: (id: number, data: any) => Promise<...>; }'.
+src/pages/students/StudentDetails.tsx(163,46): error TS2345: Argument of type 'AxiosResponse<any, any>' is not assignable to parameter of type 'Blob | MediaSource'.
+src/pages/subjects/SubjectFormPage.tsx(207,15): error TS2322: Type '{ id: string; type: string; placeholder: string; value: string; onChange: (e: ChangeEvent<HTMLInputElement>) => void; required: true; }' is not assignable to type 'IntrinsicAttributes & InputProps'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & InputProps'.
+src/pages/subjects/SubjectFormPage.tsx(220,17): error TS2322: Type '{ id: string; type: string; placeholder: string; value: string; onChange: (e: ChangeEvent<HTMLInputElement>) => void; required: true; }' is not assignable to type 'IntrinsicAttributes & InputProps'.
+  Property 'required' does not exist on type 'IntrinsicAttributes & InputProps'.
+src/pages/subjects/SubjectFormPage.tsx(231,17): error TS2322: Type 'string' is not assignable to type 'number'.
+src/pages/subjects/SubjectManagement.tsx(20,11): error TS2339: Property 'userInfo' does not exist on type 'null'.
+src/pages/users/UserManagement.tsx(148,59): error TS2322: Type '"danger"' is not assignable to type '"primary" | "outline" | undefined'.
