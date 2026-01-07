@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const baseURL = "http://api-prod.academiapro.net/api/v1.0.0";
+const baseURL = "https://api-prod.academiapro.net/api/v1.0.0";
 // const baseURL = "http://api-prod.academiapro.hstgr.cloud/api/v1.0.0";
 // const baseURL = "http://127.0.0.1:8000/api/v1.0.0";
 // export const STORAGE_URL = "http://127.0.0.1:8000/storage";
