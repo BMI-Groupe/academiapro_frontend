@@ -81,6 +81,7 @@ export default function ClassroomFormPage() {
             console.error("Failed to fetch school years", e);
         }
     };
+
     fetchSchoolYears();
 
     if (!isEditMode || !id) {
@@ -128,7 +129,7 @@ export default function ClassroomFormPage() {
     if (!form.name || !form.code || !form.level || !form.cycle || !form.school_year_id) {
       openModal({
         title: "Validation",
-        description: "Veuillez remplir tous les champs du formulaire.",
+        description: "Veuillez remplir tous les champs obligatoires du formulaire.",
         variant: "error",
       });
       return false;
@@ -148,6 +149,7 @@ export default function ClassroomFormPage() {
         cycle: form.cycle,
         tuition_fee: form.tuition_fee ? Number(form.tuition_fee) : 0,
         school_year_id: Number(form.school_year_id),
+        // Le backend créera automatiquement le template si nécessaire
       };
 
       if (isEditMode && id) {
@@ -282,7 +284,7 @@ export default function ClassroomFormPage() {
               </div>
 
               <div>
-                <Label htmlFor="classroom-school-year">Année Scolaire</Label>
+                <Label htmlFor="classroom-school-year">Année Scolaire *</Label>
                 <select
                     id="classroom-school-year"
                     value={form.school_year_id}

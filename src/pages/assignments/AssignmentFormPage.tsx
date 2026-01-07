@@ -10,6 +10,7 @@ import assignmentService from "../../api/services/assignmentService";
 import DatePicker from "../../components/form/date-picker";
 import classroomService from "../../api/services/classroomService";
 import schoolYearService from "../../api/services/schoolYearService";
+import subjectService from "../../api/services/subjectService";
 import { useActiveSchoolYear } from "../../context/SchoolYearContext";
 
 export default function AssignmentFormPage() {
@@ -19,6 +20,7 @@ export default function AssignmentFormPage() {
   const { activeSchoolYear } = useActiveSchoolYear();
   const [loading, setLoading] = useState(false);
   const [classrooms, setClassrooms] = useState<any[]>([]);
+  const [subjects, setSubjects] = useState<any[]>([]);
   const [schoolYears, setSchoolYears] = useState<any[]>([]);
   const [form, setForm] = useState({
     title: "",
@@ -29,8 +31,11 @@ export default function AssignmentFormPage() {
     start_date: "",
     due_date: "",
     classroom_id: "",
+    subject_id: "",
     school_year_id: "",
     period: "",
+    apply_to_all_sections: false,
+    apply_to_all_subjects: false,
   });
 
   const assignmentId = searchParams.get("id");
@@ -51,6 +56,22 @@ export default function AssignmentFormPage() {
       loadClassrooms();
     }
   }, [form.school_year_id]);
+
+  useEffect(() => {
+    if (form.school_year_id) {
+      if (form.apply_to_all_sections) {
+        // Charger toutes les matières de l'année scolaire
+        loadAllSubjects(form.school_year_id);
+      } else if (form.classroom_id) {
+        // Charger les matières de la classe spécifique
+        loadSubjects(form.classroom_id, form.school_year_id);
+      } else {
+        setSubjects([]);
+      }
+    } else {
+      setSubjects([]);
+    }
+  }, [form.school_year_id, form.classroom_id, form.apply_to_all_sections]);
 
   useEffect(() => {
     if (assignmentId) {
@@ -123,6 +144,87 @@ export default function AssignmentFormPage() {
     }
   };
 
+  const loadSubjects = async (classroomId?: string, schoolYearId?: string) => {
+    try {
+      const classroomIdToUse = classroomId || form.classroom_id;
+      const schoolYearIdToUse = schoolYearId || form.school_year_id;
+      
+      if (!classroomIdToUse || !schoolYearIdToUse) {
+        setSubjects([]);
+        return;
+      }
+
+      const res = await classroomService.getSubjects(parseInt(classroomIdToUse), parseInt(schoolYearIdToUse));
+      
+      if (res?.success) {
+        let items: any[] = [];
+        if (Array.isArray(res.data)) {
+          if (res.data[0] && Array.isArray(res.data[0])) {
+            items = res.data[0];
+          } else {
+            items = res.data as any[];
+          }
+        } else if (res.data && Array.isArray(res.data)) {
+          items = res.data;
+        }
+        
+        // Extraire les matières depuis les SectionSubject
+        const subjectsList = items.map((item: any) => ({
+          id: item.subject_id || item.subject?.id || item.id,
+          name: item.subject?.name || item.name,
+          code: item.subject?.code || item.code,
+          coefficient: item.coefficient,
+        })).filter((s: any) => s.id); // Filtrer les entrées invalides
+        
+        setSubjects(subjectsList);
+      }
+    } catch (e) {
+      console.error("Error loading subjects:", e);
+      setSubjects([]);
+    }
+  };
+
+  const loadAllSubjects = async (schoolYearId?: string) => {
+    try {
+      const schoolYearIdToUse = schoolYearId || form.school_year_id;
+      
+      if (!schoolYearIdToUse) {
+        setSubjects([]);
+        return;
+      }
+
+      // Charger toutes les matières de l'année scolaire
+      const res = await subjectService.list({ school_year_id: parseInt(schoolYearIdToUse) });
+      
+      if (res?.success) {
+        let items: any[] = [];
+        if (Array.isArray(res.data)) {
+          if (res.data[0] && Array.isArray(res.data[0].data)) {
+            items = res.data[0].data;
+          } else if (res.data[0] && Array.isArray(res.data[0])) {
+            items = res.data[0];
+          } else {
+            items = res.data as any[];
+          }
+        } else if (res.data && Array.isArray(res.data.data)) {
+          items = res.data.data;
+        }
+        
+        const subjectsList = items.map((subject: any) => ({
+          id: subject.id,
+          name: subject.name,
+          code: subject.code,
+          coefficient: null, // Pas de coefficient spécifique quand toutes les classes
+        })).filter((s: any) => s.id);
+        
+        setSubjects(subjectsList);
+      }
+    } catch (e) {
+      console.error("Error loading all subjects:", e);
+      setSubjects([]);
+    }
+  };
+
 
 
   const loadAssignment = async () => {
@@ -136,6 +238,9 @@ export default function AssignmentFormPage() {
         const assignment = Array.isArray(res.data) ? res.data[0] : res.data;
         console.log('Assignment data:', assignment);
         
+        const sectionId = assignment.section_id?.toString() || assignment.classroom_id?.toString() || "";
+        const schoolYearId = assignment.school_year_id?.toString() || "";
+        
         const formData = {
           title: assignment.title || "",
           description: assignment.description || "",
@@ -144,13 +249,29 @@ export default function AssignmentFormPage() {
           total_score: assignment.total_score?.toString() || "20",
           start_date: assignment.start_date || "",
           due_date: assignment.due_date || "",
-          classroom_id: assignment.classroom_id?.toString() || "",
-          school_year_id: assignment.school_year_id?.toString() || "",
+          classroom_id: sectionId,
+          subject_id: assignment.subject_id?.toString() || "",
+          school_year_id: schoolYearId,
           period: assignment.period?.toString() || "",
+          apply_to_all_sections: false, // En mode update, on ne peut pas avoir "toutes les sections"
+          apply_to_all_subjects: !assignment.subject_id,
         };
         
         console.log('Setting form data:', formData);
         setForm(formData);
+        
+        // Charger les classes et matières pour l'année scolaire
+        if (schoolYearId) {
+          await loadClassrooms();
+          
+          // Charger les matières si on a une section
+          if (sectionId) {
+            await loadSubjects(sectionId, schoolYearId);
+          } else if (formData.apply_to_all_subjects) {
+            // Si pas de matière spécifique, charger toutes les matières
+            await loadAllSubjects(schoolYearId);
+          }
+        }
       }
     } catch (e) {
       console.error('Error loading assignment:', e);
@@ -167,10 +288,19 @@ export default function AssignmentFormPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!form.title || !form.classroom_id || !form.due_date || !form.type) {
+    if (!form.title || !form.due_date || !form.type) {
       openModal({
         title: "Validation",
-        description: "Veuillez remplir tous les champs obligatoires.",
+        description: "Veuillez remplir tous les champs obligatoires (titre, type, date d'échéance).",
+        variant: "error",
+      });
+      return;
+    }
+
+    if (!form.apply_to_all_sections && !form.classroom_id) {
+      openModal({
+        title: "Validation",
+        description: "Veuillez sélectionner une classe ou cocher 'Toutes les classes'.",
         variant: "error",
       });
       return;
@@ -178,18 +308,22 @@ export default function AssignmentFormPage() {
 
     setLoading(true);
     try {
-      const payload = {
+      const payload: any = {
         title: form.title,
         description: form.description,
         type: form.type,
         max_score: parseFloat(form.total_score), // Use total_score as max_score for compatibility
         passing_score: parseFloat(form.passing_score),
         total_score: parseFloat(form.total_score),
-        start_date: form.start_date,
+        start_date: form.start_date || null,
         due_date: form.due_date,
-        classroom_id: parseInt(form.classroom_id),
+        section_id: form.apply_to_all_sections ? null : parseInt(form.classroom_id), // Send section_id (classroom_id is the section ID)
+        classroom_id: form.apply_to_all_sections ? null : parseInt(form.classroom_id), // Keep for compatibility
+        subject_id: form.apply_to_all_subjects ? null : (form.subject_id ? parseInt(form.subject_id) : null),
         school_year_id: parseInt(form.school_year_id),
-        period: parseInt(form.period),
+        period: form.period ? parseInt(form.period) : null,
+        apply_to_all_sections: form.apply_to_all_sections,
+        apply_to_all_subjects: form.apply_to_all_subjects,
       };
 
       if (isEdit) {
@@ -237,7 +371,16 @@ export default function AssignmentFormPage() {
               <Label>Année scolaire *</Label>
               <select
                 value={form.school_year_id}
-                onChange={(e) => setForm({ ...form, school_year_id: e.target.value, classroom_id: "" })}
+                onChange={(e) => {
+                  const newVal = e.target.value;
+                  setForm({ ...form, school_year_id: newVal, classroom_id: "", subject_id: "" });
+                  if (newVal) {
+                    loadClassrooms();
+                  } else {
+                    setClassrooms([]);
+                    setSubjects([]);
+                  }
+                }}
                 className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent px-4 py-2.5 text-sm dark:bg-gray-900 dark:text-white/90"
                 required
               >
@@ -292,7 +435,7 @@ export default function AssignmentFormPage() {
               />
             </div>
 
-            <div>
+            <div className="md:col-span-2">
               <Label>Type d'évaluation *</Label>
               <select
                 value={form.type}
@@ -332,23 +475,105 @@ export default function AssignmentFormPage() {
             </div>
 
             <div>
-              <Label>Classe *</Label>
-              <select
-                value={form.classroom_id}
-                onChange={(e) => setForm({ ...form, classroom_id: e.target.value })}
-                className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent px-4 py-2.5 text-sm dark:bg-gray-900 dark:text-white/90"
-                required
-                disabled={!form.school_year_id}
-              >
-                <option value="">Sélectionner une classe</option>
-                {classrooms.map((classroom) => (
-                  <option key={classroom.id} value={classroom.id}>
-                    {classroom.name} ({classroom.code})
-                  </option>
-                ))}
-              </select>
+              <Label>Classe</Label>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="apply_to_all_sections"
+                    checked={form.apply_to_all_sections}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setForm({ 
+                        ...form, 
+                        apply_to_all_sections: checked, 
+                        classroom_id: checked ? "" : form.classroom_id,
+                        // Ne pas réinitialiser subject_id, permettre de garder la sélection
+                      });
+                      // Les matières seront rechargées automatiquement via useEffect
+                    }}
+                    disabled={!form.school_year_id || isEdit}
+                    className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  />
+                  <Label htmlFor="apply_to_all_sections" className={`cursor-pointer font-normal ${isEdit ? 'opacity-50' : ''}`}>
+                    Toutes les classes
+                  </Label>
+                </div>
+                <select
+                  value={form.classroom_id}
+                  onChange={(e) => {
+                    const newVal = e.target.value;
+                    setForm({ ...form, classroom_id: newVal, subject_id: "", apply_to_all_sections: false });
+                    if (newVal && form.school_year_id) {
+                      loadSubjects(newVal, form.school_year_id);
+                    } else {
+                      setSubjects([]);
+                    }
+                  }}
+                  className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent px-4 py-2.5 text-sm dark:bg-gray-900 dark:text-white/90 disabled:bg-gray-100 disabled:cursor-not-allowed dark:disabled:bg-gray-800"
+                  disabled={!form.school_year_id || form.apply_to_all_sections}
+                >
+                  <option value="">Sélectionner une classe spécifique</option>
+                  {classrooms.map((classroom) => (
+                    <option key={classroom.id} value={classroom.id}>
+                      {classroom.name || classroom.display_name} ({classroom.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
               {!form.school_year_id && (
                 <p className="text-xs text-gray-500 mt-1">Veuillez d'abord sélectionner une année scolaire</p>
+              )}
+              {form.apply_to_all_sections && !isEdit && (
+                <p className="text-xs text-warning-600 mt-1">L'examen sera créé pour toutes les classes de l'année scolaire</p>
+              )}
+              {isEdit && (
+                <p className="text-xs text-gray-500 mt-1">En mode édition, vous ne pouvez modifier que la classe spécifique de cet examen</p>
+              )}
+            </div>
+
+            <div>
+              <Label>Matière</Label>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="apply_to_all_subjects"
+                    checked={form.apply_to_all_subjects}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setForm({ 
+                        ...form, 
+                        apply_to_all_subjects: checked, 
+                        subject_id: checked ? "" : form.subject_id
+                      });
+                    }}
+                    disabled={!form.school_year_id}
+                    className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                  />
+                  <Label htmlFor="apply_to_all_subjects" className="cursor-pointer font-normal">
+                    Toutes les matières
+                  </Label>
+                </div>
+                <select
+                  value={form.subject_id}
+                  onChange={(e) => setForm({ ...form, subject_id: e.target.value, apply_to_all_subjects: false })}
+                  className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent px-4 py-2.5 text-sm dark:bg-gray-900 dark:text-white/90 disabled:bg-gray-100 disabled:cursor-not-allowed dark:disabled:bg-gray-800"
+                  disabled={!form.school_year_id || form.apply_to_all_subjects}
+                >
+                  <option value="">Sélectionner une matière spécifique</option>
+                  {subjects.map((subject) => (
+                    <option key={subject.id} value={subject.id}>
+                      {subject.name} ({subject.code}) {subject.coefficient ? `- Coef: ${subject.coefficient}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {!form.school_year_id && (
+                <p className="text-xs text-gray-500 mt-1">Veuillez d'abord sélectionner une année scolaire</p>
+              )}
+              {form.apply_to_all_subjects && (
+                <p className="text-xs text-warning-600 mt-1">L'examen s'appliquera à toutes les matières</p>
               )}
             </div>
 

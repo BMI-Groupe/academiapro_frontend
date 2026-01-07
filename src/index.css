@@ -78,8 +78,19 @@ layer(base);
   --color-success-900: #234e0c;
   --color-success-950: #122c06;
 
-  /* ⚠️ JAUNE — Couleur d'accent/alerte */
+  /* ⚠️ JAUNE — Couleur d'accent/alerte (Palette complète) */
+  --color-warning-25: #fffef5;
+  --color-warning-50: #fffceb;
+  --color-warning-100: #fff8d1;
+  --color-warning-200: #fff0a3;
+  --color-warning-300: #ffe575;
+  --color-warning-400: #ffd947;
   --color-warning-500: #FFCC33;
+  --color-warning-600: #e6b82e;
+  --color-warning-700: #cc9f29;
+  --color-warning-800: #b38624;
+  --color-warning-900: #996d1f;
+  --color-warning-950: #80541a;
 
   /* ⚫ GRIS FONCÉS — dégradés autour de Castleton Green */
   --color-gray-100: #e0f2ef;

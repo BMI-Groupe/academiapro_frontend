@@ -26,8 +26,14 @@ export default function SchoolYearFilter({
         className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
         value={value?.id || ''}
         onChange={(e) => {
-          const selectedYear = years.find(y => y.id === parseInt(e.target.value));
-          onChange(selectedYear);
+          const selectedValue = e.target.value;
+          if (selectedValue === '') {
+            // Si "Toutes les années" est sélectionné, passer null
+            onChange(null);
+          } else {
+            const selectedYear = years.find(y => y.id === parseInt(selectedValue));
+            onChange(selectedYear || null);
+          }
         }}
         disabled={loading}
       >

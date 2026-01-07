@@ -7,6 +7,8 @@ import studentService from "../../api/services/studentService";
 import reportCardService from "../../api/services/reportCardService";
 import gradeService from "../../api/services/gradeService";
 import assignmentService from "../../api/services/assignmentService";
+import classroomService from "../../api/services/classroomService";
+import schoolYearService from "../../api/services/schoolYearService";
 import { useCustomModal } from "../../context/ModalContext";
 import paymentService from "../../api/services/paymentService";
 
@@ -22,6 +24,8 @@ export default function StudentDetails() {
   const [reportCards, setReportCards] = useState<any[]>([]);
   const [paymentsData, setPaymentsData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [classrooms, setClassrooms] = useState<any[]>([]);
+  const [reassigning, setReassigning] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -43,9 +47,15 @@ export default function StudentDetails() {
         setStudent(res.data);
         // Fetch enrollments
         if (res.data.enrollments) {
-          setEnrollments(res.data.enrollments);
-          if (res.data.enrollments.length > 0) {
-            setSelectedYear(res.data.enrollments[0].school_year);
+          // Trier les inscriptions par année scolaire (plus récente en premier)
+          const sortedEnrollments = [...res.data.enrollments].sort((a, b) => {
+            const dateA = a.school_year?.start_date || '';
+            const dateB = b.school_year?.start_date || '';
+            return dateB.localeCompare(dateA);
+          });
+          setEnrollments(sortedEnrollments);
+          if (sortedEnrollments.length > 0) {
+            setSelectedYear(sortedEnrollments[0].school_year);
           }
         }
       }
@@ -174,6 +184,107 @@ export default function StudentDetails() {
     }
   };
 
+  const handleReassignClassroom = async (enrollment: any) => {
+    // Charger les classes disponibles pour l'année scolaire
+    setReassigning(true);
+    try {
+      const res = await classroomService.list({ school_year_id: enrollment.school_year?.id });
+      let items: any[] = [];
+      if (res && res.success) {
+        if (Array.isArray(res.data)) {
+          if (res.data[0] && Array.isArray(res.data[0].data)) {
+            items = res.data[0].data;
+          } else {
+            items = res.data as any[];
+          }
+        }
+      }
+      setClassrooms(items);
+
+      // Ouvrir le modal de sélection
+      openModal({
+        title: `Réaffecter l'élève - ${enrollment.school_year?.label}`,
+        description: `Sélectionnez la nouvelle classe pour ${student?.first_name} ${student?.last_name} pour l'année ${enrollment.school_year?.label}.`,
+        variant: "info",
+        content: (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Classe actuelle
+              </label>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                {enrollment.classroom?.name || "Aucune classe assignée"}
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Nouvelle classe *
+              </label>
+              <select
+                id="new-classroom"
+                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm shadow-theme-xs text-gray-800 focus:border-brand-300 focus:outline-hidden focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+              >
+                <option value="">Sélectionnez une classe</option>
+                {items.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} {c.level ? `(${c.level})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        ),
+        primaryLabel: "Réaffecter",
+        primaryAction: async () => {
+          const select = document.getElementById('new-classroom') as HTMLSelectElement;
+          const newClassroomId = select?.value;
+          
+          if (!newClassroomId) {
+            openModal({
+              title: "Erreur",
+              description: "Veuillez sélectionner une classe.",
+              variant: "error",
+            });
+            return;
+          }
+
+          try {
+            await studentService.reassignClassroom(
+              parseInt(id!),
+              parseInt(newClassroomId),
+              enrollment.school_year?.id
+            );
+            openModal({
+              title: "Succès",
+              description: "L'élève a été réaffecté avec succès.",
+              variant: "success",
+            });
+            fetchStudentDetails();
+            if (selectedYear?.id === enrollment.school_year?.id) {
+              fetchYearData();
+            }
+          } catch (e: any) {
+            console.error(e);
+            openModal({
+              title: "Erreur",
+              description: e?.response?.data?.message || "Impossible de réaffecter l'élève.",
+              variant: "error",
+            });
+          }
+        },
+      });
+    } catch (e) {
+      console.error(e);
+      openModal({
+        title: "Erreur",
+        description: "Impossible de charger les classes disponibles.",
+        variant: "error",
+      });
+    } finally {
+      setReassigning(false);
+    }
+  };
+
   if (loading && !student) {
     return (
       <>
@@ -236,32 +347,109 @@ export default function StudentDetails() {
           </div>
         </div>
 
-        {/* School Years */}
+        {/* Timeline chronologique du cursus */}
         <div className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
-            Années scolaires
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-6">
+            Parcours scolaire - Historique complet
           </h3>
           
           {enrollments.length === 0 ? (
             <p className="text-gray-500">Aucune inscription trouvée.</p>
           ) : (
-            <div className="flex flex-wrap gap-2">
-              {enrollments.map((enrollment) => (
-                <button
-                  key={enrollment.id}
-                  onClick={() => setSelectedYear(enrollment.school_year)}
-                  className={`px-4 py-2 rounded-lg border transition-colors ${
-                    selectedYear?.id === enrollment.school_year?.id
-                      ? "bg-blue-500 text-white border-blue-500"
-                      : "bg-white text-gray-700 border-gray-300 hover:border-blue-500 dark:bg-gray-800 dark:text-white dark:border-gray-700"
-                  }`}
-                >
-                  {enrollment.school_year?.label || "N/A"}
-                  <span className="ml-2 text-xs">
-                    ({enrollment.classroom?.name || "N/A"})
-                  </span>
-                </button>
-              ))}
+            <div className="space-y-4">
+              {/* Timeline verticale */}
+              <div className="relative">
+                {enrollments.map((enrollment, index) => {
+                  const isSelected = selectedYear?.id === enrollment.school_year?.id;
+                  const startDate = enrollment.school_year?.start_date 
+                    ? new Date(enrollment.school_year.start_date).toLocaleDateString('fr-FR', { year: 'numeric', month: 'short' })
+                    : '';
+                  const endDate = enrollment.school_year?.end_date 
+                    ? new Date(enrollment.school_year.end_date).toLocaleDateString('fr-FR', { year: 'numeric', month: 'short' })
+                    : '';
+                  
+                  return (
+                    <div key={enrollment.id} className="relative flex items-start gap-4 pb-6 last:pb-0">
+                      {/* Ligne verticale */}
+                      {index < enrollments.length - 1 && (
+                        <div className="absolute left-4 top-8 bottom-0 w-0.5 bg-gray-300 dark:bg-gray-700"></div>
+                      )}
+                      
+                      {/* Point de timeline */}
+                      <div className={`relative z-10 flex-shrink-0 w-8 h-8 rounded-full border-2 flex items-center justify-center ${
+                        isSelected 
+                          ? 'bg-warning-500 border-warning-600' 
+                          : 'bg-white border-gray-300 dark:bg-gray-800 dark:border-gray-600'
+                      }`}>
+                        <div className={`w-3 h-3 rounded-full ${
+                          isSelected ? 'bg-warning-600' : 'bg-gray-400'
+                        }`}></div>
+                      </div>
+                      
+                      {/* Contenu */}
+                      <button
+                        onClick={() => setSelectedYear(enrollment.school_year)}
+                        className={`flex-1 text-left p-4 rounded-lg border transition-all ${
+                          isSelected
+                            ? 'bg-warning-50 border-warning-300 dark:bg-warning-900/20 dark:border-warning-700 shadow-md'
+                            : 'bg-gray-50 border-gray-200 hover:border-warning-300 hover:bg-warning-50/50 dark:bg-gray-800 dark:border-gray-700 dark:hover:border-warning-600'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className={`font-semibold ${
+                            isSelected 
+                              ? 'text-warning-700 dark:text-warning-400' 
+                              : 'text-gray-800 dark:text-white'
+                          }`}>
+                            {enrollment.school_year?.label || "Année inconnue"}
+                          </h4>
+                          <div className="flex items-center gap-2">
+                            {enrollment.school_year?.is_active && (
+                              <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-700 rounded-full dark:bg-green-900/30 dark:text-green-400">
+                                Active
+                              </span>
+                            )}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleReassignClassroom(enrollment);
+                              }}
+                              className="px-3 py-1 text-xs font-medium text-warning-700 bg-warning-100 hover:bg-warning-200 rounded-lg transition-colors dark:text-warning-400 dark:bg-warning-900/30 dark:hover:bg-warning-900/50"
+                              title="Réaffecter à une autre classe"
+                            >
+                              Réaffecter
+                            </button>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+                          <span className="flex items-center gap-1">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                            </svg>
+                            {enrollment.classroom?.name || "Classe non assignée"}
+                          </span>
+                          {(startDate || endDate) && (
+                            <span className="flex items-center gap-1">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                              {startDate} - {endDate}
+                            </span>
+                          )}
+                          {enrollment.enrolled_at && (
+                            <span className="flex items-center gap-1">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              Inscrit le {new Date(enrollment.enrolled_at).toLocaleDateString('fr-FR')}
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>

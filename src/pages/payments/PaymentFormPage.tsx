@@ -10,6 +10,7 @@ import classroomService from "../../api/services/classroomService";
 import studentService from "../../api/services/studentService";
 import paymentService from "../../api/services/paymentService";
 import schoolYearService from "../../api/services/schoolYearService";
+import SearchableSelect from "../../components/form/SearchableSelect";
 
 
 export default function PaymentFormPage() {
@@ -25,6 +26,7 @@ export default function PaymentFormPage() {
   const [selectedSchoolYearId, setSelectedSchoolYearId] = useState<string>("");
   const [selectedClassroom, setSelectedClassroom] = useState("");
   const [selectedStudent, setSelectedStudent] = useState("");
+  const [paymentType, setPaymentType] = useState<string>("TUITION");
   const [amount, setAmount] = useState("");
   const [notes, setNotes] = useState("");
   
@@ -125,7 +127,7 @@ export default function PaymentFormPage() {
       setLoadingStudents(true);
       try {
           const res = await studentService.list({ 
-              classroom_id: classroomId, 
+              section_id: classroomId, // Utiliser section_id au lieu de classroom_id
               school_year_id: selectedSchoolYearId,
               per_page: 100 
           });
@@ -151,10 +153,10 @@ export default function PaymentFormPage() {
   };
 
   const handleSubmit = async () => {
-      if (!selectedStudent || !amount || parseFloat(amount) <= 0 || !selectedSchoolYearId) {
+      if (!selectedStudent || !amount || parseFloat(amount) <= 0 || !selectedSchoolYearId || !paymentType) {
            openModal({
               title: "Validation",
-              description: "Veuillez remplir tous les champs obligatoires (Année, Classe, Élève, Montant).",
+              description: "Veuillez remplir tous les champs obligatoires (Année, Classe, Élève, Type, Montant).",
               variant: "error"
            });
            return;
@@ -166,7 +168,7 @@ export default function PaymentFormPage() {
               student_id: parseInt(selectedStudent),
               amount: parseFloat(amount),
               payment_date: new Date().toISOString().split('T')[0],
-              type: "TUITION",
+              type: paymentType,
               school_year_id: parseInt(selectedSchoolYearId),
               notes: notes
           };
@@ -256,16 +258,53 @@ export default function PaymentFormPage() {
             {/* Student Select */}
             <div className="space-y-1">
                 <Label>Élève</Label>
+                <SearchableSelect
+                    options={students.map((student) => ({
+                        value: student.id.toString(),
+                        label: `${student.first_name} ${student.last_name} (${student.matricule})`,
+                    }))}
+                    value={selectedStudent}
+                    onChange={(value) => setSelectedStudent(value)}
+                    placeholder={
+                        !selectedSchoolYearId 
+                            ? "Sélectionnez d'abord une année scolaire" 
+                            : !selectedClassroom 
+                                ? "Sélectionnez d'abord une classe"
+                                : loadingStudents
+                                    ? "Chargement..."
+                                    : students.length === 0
+                                        ? "Aucun élève disponible"
+                                        : "Sélectionner un élève"
+                    }
+                    searchPlaceholder="Rechercher un élève..."
+                    disabled={!selectedClassroom || loadingStudents || submitting}
+                    required
+                />
+                {!selectedSchoolYearId && (
+                    <p className="text-xs text-gray-500 mt-1">Veuillez d'abord sélectionner une année scolaire</p>
+                )}
+                {selectedSchoolYearId && !selectedClassroom && (
+                    <p className="text-xs text-gray-500 mt-1">Veuillez d'abord sélectionner une classe</p>
+                )}
+                {selectedSchoolYearId && selectedClassroom && students.length === 0 && !loadingStudents && (
+                    <p className="text-xs text-yellow-600 dark:text-yellow-500 mt-1">
+                        Aucun élève inscrit dans cette classe pour cette année scolaire.
+                    </p>
+                )}
+            </div>
+
+            {/* Payment Type Select */}
+            <div className="space-y-1">
+                <Label>Type de Paiement</Label>
                 <select 
                     className="w-full rounded-lg border border-gray-300 px-4 py-2 dark:border-gray-700 dark:bg-gray-800 focus:border-brand-500 focus:outline-none"
-                    value={selectedStudent}
-                    onChange={(e) => setSelectedStudent(e.target.value)}
-                    disabled={!selectedClassroom || loadingStudents || submitting}
+                    value={paymentType}
+                    onChange={(e) => setPaymentType(e.target.value)}
+                    disabled={submitting}
                 >
-                    <option value="">Sélectionner un élève</option>
-                    {students.map((s, index) => (
-                        <option key={`${s.id}-${index}`} value={s.id}>{s.first_name} {s.last_name} ({s.matricule})</option>
-                    ))}
+                    <option value="TUITION">Écolage</option>
+                    <option value="REGISTRATION">Inscription</option>
+                    <option value="OTHER">Autre</option>
                 </select>
             </div>
 

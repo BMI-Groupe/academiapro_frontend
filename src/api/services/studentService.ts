@@ -37,6 +37,22 @@ const remove = async (id: number) => {
   return res.data;
 };
 
+const reassignClassroom = async (
+  id: number, 
+  classroomId: number, 
+  schoolYearId: number,
+  currentEnrollmentId?: number,
+  currentSchoolYearId?: number
+) => {
+  const res = await axiosInstance.post(`/students/${id}/reassign-classroom`, {
+    classroom_id: classroomId,
+    school_year_id: schoolYearId,
+    current_enrollment_id: currentEnrollmentId,
+    current_school_year_id: currentSchoolYearId,
+  });
+  return res.data;
+};
+
 export default {
   list,
   get,
@@ -45,4 +61,5 @@ export default {
   create,
   update,
   remove,
+  reassignClassroom,
 };

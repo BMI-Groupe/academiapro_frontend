@@ -159,6 +159,7 @@ export default function PaymentManagement() {
                      <th className="px-6 py-3">Référence</th>
                      <th className="px-6 py-3">Élève</th>
                      <th className="px-6 py-3">Classe</th>
+                     <th className="px-6 py-3">Type de Paiement</th>
                      <th className="px-6 py-3 text-right">Montant</th>
                      <th className="px-6 py-3 text-right">Actions</th>
                    </tr>
@@ -179,7 +180,21 @@ export default function PaymentManagement() {
                           <div className="text-xs text-gray-500">{payment.student?.matricule}</div>
                        </td>
                        <td className="px-6 py-4">
-                         {payment.student?.classroom?.name || "N/A"}
+                         {(() => {
+                           // Trouver l'inscription pour l'année scolaire du paiement
+                           const enrollment = payment.student?.enrollments?.find(
+                             (e: any) => e.school_year_id === payment.school_year_id
+                           );
+                           return enrollment?.section?.name || 
+                                  enrollment?.section?.classroom_template?.name || 
+                                  enrollment?.classroom?.name || 
+                                  "N/A";
+                         })()}
+                       </td>
+                       <td className="px-6 py-4">
+                         <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                           {payment.type === "TUITION" ? "Écolage" : payment.type || "N/A"}
+                         </span>
                        </td>
                        <td className="px-6 py-4 text-right font-bold text-gray-900 dark:text-white">
                          {new Intl.NumberFormat("fr-FR").format(payment.amount)} FCFA

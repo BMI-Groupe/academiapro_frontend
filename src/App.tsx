@@ -35,13 +35,14 @@ import UsersRolesTables from "./pages/Tables/UsersRolesTables.tsx";
 import ClassroomManagement from "./pages/classrooms/ClassroomManagement.tsx";
 import ClassroomFormPage from "./pages/classrooms/ClassroomFormPage.tsx";
 import ClassroomSubjectsPage from "./pages/classrooms/ClassroomSubjectsPage.tsx";
+import ClassroomTemplateSubjectsPage from "./pages/classrooms/ClassroomTemplateSubjectsPage.tsx";
 import StudentManagement from "./pages/students/StudentManagement.tsx";
 import StudentFormPage from "./pages/students/StudentFormPage.tsx";
 import StudentDetails from "./pages/students/StudentDetails.tsx";
 import StudentDetailPage from "./pages/students/StudentDetailPage.tsx";
 import TeacherManagement from "./pages/teachers/TeacherManagement.tsx";
 import TeacherFormPage from "./pages/teachers/TeacherFormPage.tsx";
-import TeacherDetails from "./pages/teachers/TeacherDetails.tsx";
+import TeacherDetailPage from "./pages/teachers/TeacherDetailPage.tsx";
 import ClassroomDetails from "./pages/classrooms/ClassroomDetails.tsx";
 import ClassroomDetailPage from "./pages/classrooms/ClassroomDetailPage.tsx";
 import SubjectManagement from "./pages/subjects/SubjectManagement.tsx";
@@ -107,6 +108,7 @@ export default function App() {
                     <Route path="/classrooms/:id/details" element={<ClassroomDetails />} />
                     <Route path="/classrooms/:id" element={<ClassroomDetailPage />} />
                     <Route path="/classrooms/:classroomId/subjects" element={<ClassroomSubjectsPage />} />
+                    <Route path="/classroom-templates/:templateId/subjects" element={<ClassroomTemplateSubjectsPage />} />
                     <Route path="/students" element={<StudentManagement />} />
                     <Route path="/students/new" element={<StudentFormPage />} />
                     <Route path="/students/:id/edit" element={<StudentFormPage />} />
@@ -115,7 +117,7 @@ export default function App() {
                     <Route path="/teachers" element={<TeacherManagement />} />
                     <Route path="/teachers/new" element={<TeacherFormPage />} />
                     <Route path="/teachers/:id/edit" element={<TeacherFormPage />} />
-                    <Route path="/teachers/:id/details" element={<TeacherDetails />} />
+                    <Route path="/teachers/:id/details" element={<TeacherDetailPage />} />
                     <Route path="/subjects" element={<SubjectManagement />} />
                     <Route path="/subjects/new" element={<SubjectFormPage />} />
                     <Route path="/subjects/:id/edit" element={<SubjectFormPage />} />

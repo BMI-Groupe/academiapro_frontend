@@ -55,12 +55,19 @@ export default function ScheduleManagement() {
     }
   }, [selectedClassroom, selectedSchoolYear]);
 
+  // Charger les classes quand l'année scolaire change
+  useEffect(() => {
+    if (selectedSchoolYear) {
+      loadClassrooms(selectedSchoolYear);
+    } else {
+      setClassrooms([]);
+      setSelectedClassroom(""); // Réinitialiser la classe sélectionnée
+    }
+  }, [selectedSchoolYear]);
+
   const loadData = async () => {
     try {
-      const [classRes, yearRes] = await Promise.all([
-        classroomService.list(),
-        schoolYearService.list(),
-      ]);
+      const yearRes = await schoolYearService.list();
 
       const extractItems = (res: any) => {
         if (!res?.success) return [];
@@ -78,10 +85,39 @@ export default function ScheduleManagement() {
         return [];
       };
 
-      setClassrooms(extractItems(classRes));
       setSchoolYears(extractItems(yearRes));
+
+      // Charger les classes si une année scolaire est déjà sélectionnée
+      if (selectedSchoolYear) {
+        await loadClassrooms(selectedSchoolYear);
+      }
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const loadClassrooms = async (schoolYearId: string) => {
+    try {
+      const res = await classroomService.list({ school_year_id: parseInt(schoolYearId) });
+      
+      if (res?.success) {
+        let items: any[] = [];
+        if (Array.isArray(res.data)) {
+          if (res.data[0] && Array.isArray(res.data[0].data)) {
+            items = res.data[0].data;
+          } else if (res.data[0] && Array.isArray(res.data[0])) {
+            items = res.data[0];
+          } else {
+            items = res.data;
+          }
+        } else if (res.data && Array.isArray(res.data.data)) {
+          items = res.data.data;
+        }
+        setClassrooms(items || []);
+      }
+    } catch (e) {
+      console.error(e);
+      setClassrooms([]);
     }
   };
 
@@ -177,13 +213,16 @@ export default function ScheduleManagement() {
               <Label>Année scolaire</Label>
               <select
                 value={selectedSchoolYear}
-                onChange={(e) => setSelectedSchoolYear(e.target.value)}
+                onChange={(e) => {
+                  setSelectedSchoolYear(e.target.value);
+                  setSelectedClassroom(""); // Réinitialiser la classe quand l'année change
+                }}
                 className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent px-4 py-2.5 text-sm dark:bg-gray-900 dark:text-white/90"
               >
-                <option value="">Toutes les années</option>
+                <option value="">Sélectionner une année scolaire</option>
                 {schoolYears.map((year) => (
                   <option key={year.id} value={year.id}>
-                    {year.label}
+                    {year.label} {year.is_active ? '(Active)' : ''}
                   </option>
                 ))}
               </select>
@@ -195,8 +234,11 @@ export default function ScheduleManagement() {
                 value={selectedClassroom}
                 onChange={(e) => setSelectedClassroom(e.target.value)}
                 className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent px-4 py-2.5 text-sm dark:bg-gray-900 dark:text-white/90"
+                disabled={!selectedSchoolYear}
               >
-                <option value="">Sélectionner une classe</option>
+                <option value="">
+                  {!selectedSchoolYear ? "Sélectionnez d'abord une année scolaire" : "Sélectionner une classe"}
+                </option>
                 {classrooms.map((classroom) => (
                   <option key={classroom.id} value={classroom.id}>
                     {classroom.name}

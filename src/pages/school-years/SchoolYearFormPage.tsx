@@ -66,18 +66,26 @@ export default function SchoolYearFormPage() {
   };
 
   const handleSubmit = async () => {
-      if (!form.label || !form.year_start || !form.year_end) {
-          openModal({ title:"Validation", description:"Veuillez remplir les champs obligatoires.", variant:"error" });
+      if (!form.year_start || !form.year_end) {
+          openModal({ title:"Validation", description:"Veuillez remplir les champs obligatoires (Année début et Année fin).", variant:"error" });
           return;
       }
 
+      // Générer automatiquement le label si vide
+      const labelToSubmit = form.label || `${form.year_start}-${form.year_end}`;
+
       setSubmitting(true);
       try {
+          const formData = {
+              ...form,
+              label: labelToSubmit
+          };
+          
           if (isEdit) {
-              await schoolYearService.update(parseInt(id!), form);
+              await schoolYearService.update(parseInt(id!), formData);
               openModal({ title: "Succès", description: "Année scolaire mise à jour.", variant: "success" });
           } else {
-              await schoolYearService.create(form);
+              await schoolYearService.create(formData);
               openModal({ title: "Succès", description: "Année scolaire créée.", variant: "success" });
           }
           navigate("/school-years");
@@ -103,8 +111,11 @@ export default function SchoolYearFormPage() {
         
         <div className="space-y-4 max-w-lg">
             <div>
-                <Label>Libellé (Ex: 2023-2024)</Label>
+                <Label>Libellé (Ex: 2023-2024) <span className="text-gray-400 text-sm font-normal">(Optionnel - généré automatiquement si vide)</span></Label>
                 <Input value={form.label} onChange={(e) => setForm({...form, label: e.target.value})} placeholder="2023-2024" />
+                {!form.label && form.year_start && form.year_end && (
+                    <p className="text-sm text-gray-500 mt-1">Sera généré automatiquement : {form.year_start}-{form.year_end}</p>
+                )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
