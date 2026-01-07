@@ -10,6 +10,7 @@ export interface Payment {
     reference: string;
     notes: string | null;
     created_at: string;
+    school_year_id?: number;
     student?: {
         id: number;
         first_name: string;
@@ -19,6 +20,22 @@ export interface Payment {
             id: number;
             name: string;
         };
+        enrollments?: Array<{
+            id: number;
+            school_year_id: number;
+            section?: {
+                id: number;
+                name: string;
+                classroom_template?: {
+                    id: number;
+                    name: string;
+                };
+            };
+            classroom?: {
+                id: number;
+                name: string;
+            };
+        }>;
     };
     user?: {
         id: number;

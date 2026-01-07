@@ -35,37 +35,50 @@ export const SchoolYearProvider: React.FC<{ children: ReactNode }> = ({ children
     setLoading(true);
     setError(null);
     try {
-      // On utilise list() car il est plus fiable et on filtre nous-même
-      const res = await schoolYearService.list();
+      // Utiliser l'endpoint dédié pour récupérer l'année active
+      const res = await schoolYearService.getActive();
       
-      if (res && res.success) {
-        let items: any[] = [];
+      console.log('🔍 Active school year response:', res);
+      
+      if (res && res.success && res.data) {
+        let activeYear: any = null;
         
-        // Gestion robuste structure API (similaire aux pages Management)
+        // Gestion de la structure de réponse API (format: { success: true, data: [year], message: '...' })
         if (Array.isArray(res.data)) {
-           if (Array.isArray(res.data[0])) {
-               items = res.data[0];
-           } else {
-               items = res.data;
-           }
-        } else if (res.data?.data) {
-           items = res.data.data;
+          // Si c'est un tableau, prendre le premier élément
+          if (res.data.length > 0) {
+            activeYear = res.data[0];
+          }
+        } else if (res.data && typeof res.data === 'object') {
+          // Si c'est un objet direct (peut arriver selon la structure)
+          activeYear = res.data;
         }
 
-        // Trouver l'année active (is_active === 1 ou true)
-        // On vérifie les deux types (booléen ou entier)
-        const active = items.find((y: any) => y.is_active === true || y.is_active === 1);
+        console.log('🔍 Parsed active year:', activeYear);
 
-        if (active) {
-            setActiveSchoolYear(active);
+        if (activeYear && activeYear.id) {
+          setActiveSchoolYear(activeYear);
+          setError(null);
         } else {
-            setActiveSchoolYear(null);
-            // Pas une erreur critique, juste pas d'année active définie
+          console.warn('🔍 No valid active year found in response');
+          setActiveSchoolYear(null);
+          setError('Aucune année scolaire active trouvée');
         }
+      } else {
+        // Pas d'année active (404 ou autre)
+        console.warn('🔍 No success or data in response:', res);
+        setActiveSchoolYear(null);
+        setError(res?.message || 'Aucune année scolaire active trouvée');
       }
     } catch (err: any) {
-      if (err?.response?.status !== 401) {
+      console.error('🔍 Error fetching active school year:', err);
+      if (err?.response?.status === 404) {
+        // 404 signifie qu'il n'y a pas d'année active, ce n'est pas une erreur critique
+        setActiveSchoolYear(null);
+        setError('Aucune année scolaire active trouvée');
+      } else if (err?.response?.status !== 401) {
         console.error('Erreur contexte année:', err);
+        setError('Erreur lors de la récupération de l\'année scolaire active');
       }
     } finally {
       setLoading(false);

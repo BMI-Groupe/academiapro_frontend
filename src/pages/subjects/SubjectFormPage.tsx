@@ -235,14 +235,13 @@ export default function SubjectFormPage() {
             </div>
 
             <div>
-              <Label htmlFor="school_year_id">Année scolaire (Optionnel)</Label>
+              <Label htmlFor="school_year_id">Année scolaire <span className="text-red-500">*</span></Label>
               <Select
                 options={[{value: "", label: "Toutes les années"}, ...schoolYears]}
                 value={form.school_year_id ? String(form.school_year_id) : ""}
                 onChange={(value) => setForm({ ...form, school_year_id: value })}
-                placeholder="Sélectionner une année"
+                placeholder="Sélectionner une année scolaire"
               />
-              <p className="text-sm text-gray-400 mt-1">Laissez vide si la matière est valable pour toutes les années.</p>
             </div>
           </div>
 

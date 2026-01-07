@@ -1,9 +1,10 @@
 import axiosInstance from "../axios";
 
 const dashboardService = {
-    getStats: (school_year_id?: number) => {
+    getStats: async (school_year_id?: number) => {
         const params = school_year_id ? { school_year_id } : {};
-        return axiosInstance.get('/dashboard/stats', { params });
+        const res = await axiosInstance.get('/dashboard/stats', { params });
+        return res.data;
     }
 };
 

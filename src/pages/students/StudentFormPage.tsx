@@ -7,6 +7,7 @@ import Input from "../../components/form/input/InputField";
 import Label from "../../components/form/Label";
 import studentService from "../../api/services/studentService";
 import classroomService from "../../api/services/classroomService";
+import schoolYearService from "../../api/services/schoolYearService";
 import { useCustomModal } from "../../context/ModalContext";
 import DatePicker from "../../components/form/date-picker";
 
@@ -19,6 +20,7 @@ interface StudentForm {
   parent_contact: string;
   address: string;
   classroom_id?: number;
+  school_year_id?: number;
 }
 
 const emptyForm: StudentForm = {
@@ -40,6 +42,7 @@ export default function StudentFormPage() {
   const isEditMode = Boolean(id);
   const [form, setForm] = useState<StudentForm>(emptyForm);
   const [classrooms, setClassrooms] = useState<any[]>([]);
+  const [schoolYears, setSchoolYears] = useState<any[]>([]);
   const [fetching, setFetching] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -63,22 +66,67 @@ export default function StudentFormPage() {
     return response.data;
   };
 
+  // Charger les années scolaires au montage
+  useEffect(() => {
+    const fetchSchoolYears = async () => {
+      try {
+        const yearRes = await schoolYearService.list();
+        if (yearRes && yearRes.success) {
+          let yearItems: any[] = [];
+          if (Array.isArray(yearRes.data)) {
+            if (yearRes.data[0] && Array.isArray(yearRes.data[0].data)) {
+              yearItems = yearRes.data[0].data;
+            } else if (yearRes.data[0] && Array.isArray(yearRes.data[0])) {
+              yearItems = yearRes.data[0];
+            } else {
+              yearItems = yearRes.data as any[];
+            }
+          }
+          setSchoolYears(yearItems || []);
+          
+          // Initialiser avec l'année active si disponible (mode création uniquement)
+          if (!isEditMode && yearItems.length > 0) {
+            const activeYear = yearItems.find((y: any) => y.is_active);
+            if (activeYear) {
+              setForm(prev => ({ ...prev, school_year_id: activeYear.id }));
+            }
+          }
+        }
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    fetchSchoolYears();
+  }, [isEditMode]);
+
+  // Charger les classes en fonction de l'année scolaire sélectionnée
   useEffect(() => {
     const fetchClassrooms = async () => {
+      if (!form.school_year_id) {
+        setClassrooms([]);
+        return;
+      }
+
       try {
-        const res = await classroomService.list();
-        if (res && res.success) {
+        const classroomRes = await classroomService.list({ school_year_id: form.school_year_id });
+        if (classroomRes && classroomRes.success) {
           let items: any[] = [];
-          if (Array.isArray(res.data)) {
-            if (res.data[0] && Array.isArray(res.data[0].data)) {
-              items = res.data[0].data;
-            } else if (res.data[0] && Array.isArray(res.data[0])) {
-              items = res.data[0];
+          if (Array.isArray(classroomRes.data)) {
+            if (classroomRes.data[0] && Array.isArray(classroomRes.data[0].data)) {
+              items = classroomRes.data[0].data;
+            } else if (classroomRes.data[0] && Array.isArray(classroomRes.data[0])) {
+              items = classroomRes.data[0];
             } else {
-              items = res.data as any[];
+              items = classroomRes.data as any[];
             }
           }
           setClassrooms(items || []);
+          
+          // Réinitialiser classroom_id si la classe actuelle n'est plus disponible
+          if (form.classroom_id && !items.find((c: any) => c.id === form.classroom_id)) {
+            setForm(prev => ({ ...prev, classroom_id: undefined }));
+          }
         }
       } catch (error) {
         console.error(error);
@@ -86,7 +134,7 @@ export default function StudentFormPage() {
     };
 
     fetchClassrooms();
-  }, []);
+  }, [form.school_year_id]);
 
   useEffect(() => {
     if (!isEditMode || !id) {
@@ -126,10 +174,19 @@ export default function StudentFormPage() {
   }, [id, isEditMode, openModal]);
 
   const handleChange = (key: keyof StudentForm, value: string | number) => {
-    setForm((prev) => ({
-      ...prev,
-      [key]: value,
-    }));
+    setForm((prev) => {
+      const newForm = {
+        ...prev,
+        [key]: value,
+      };
+      
+      // Si l'année scolaire change, réinitialiser la classe
+      if (key === 'school_year_id') {
+        newForm.classroom_id = undefined;
+      }
+      
+      return newForm;
+    });
   };
 
   const validateForm = () => {
@@ -137,6 +194,14 @@ export default function StudentFormPage() {
       openModal({
         title: "Validation",
         description: "Veuillez remplir les champs obligatoires (Prénom, Nom, Matricule).",
+        variant: "error",
+      });
+      return false;
+    }
+    if (!form.school_year_id) {
+      openModal({
+        title: "Validation",
+        description: "Veuillez sélectionner une année scolaire.",
         variant: "error",
       });
       return false;
@@ -158,6 +223,7 @@ export default function StudentFormPage() {
         parent_contact: form.parent_contact || undefined,
         address: form.address || undefined,
         classroom_id: form.classroom_id || undefined,
+        school_year_id: form.school_year_id || undefined,
       };
 
       if (isEditMode && id) {
@@ -209,7 +275,9 @@ export default function StudentFormPage() {
           </Button>
         </div>
 
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
+        <div className="group relative rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900 shadow-sm hover:shadow-md transition-all duration-300">
+          {/* Subtle accent */}
+          <div className="absolute top-0 left-0 w-1 h-full bg-warning-500 opacity-0 group-hover:opacity-20 transition-opacity duration-300 rounded-l-2xl"></div>
           {fetching ? (
             <p className="text-center text-gray-500">Chargement des informations...</p>
           ) : (
@@ -257,22 +325,46 @@ export default function StudentFormPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="student-classroom">Classe</Label>
+                  <Label htmlFor="student-school-year">Année scolaire *</Label>
                   <select
-                    id="student-classroom"
-                    value={String(form.classroom_id || 0)}
-                    onChange={(e) => handleChange("classroom_id", Number(e.target.value))}
+                    id="student-school-year"
+                    value={String(form.school_year_id || 0)}
+                    onChange={(e) => handleChange("school_year_id", Number(e.target.value))}
                     className={selectClasses}
                     disabled={submitting}
                   >
-                    <option value={0}>Sélectionnez une classe</option>
-                    {classrooms.map((c) => (
-                      <option value={c.id} key={c.id}>
-                        {c.name}
+                    <option value={0}>Sélectionnez une année scolaire</option>
+                    {schoolYears.map((y) => (
+                      <option value={y.id} key={y.id}>
+                        {y.label} {y.is_active ? '(Active)' : ''}
                       </option>
                     ))}
                   </select>
                 </div>
+              </div>
+
+              <div>
+                <Label htmlFor="student-classroom">Classe</Label>
+                <select
+                  id="student-classroom"
+                  value={String(form.classroom_id || 0)}
+                  onChange={(e) => handleChange("classroom_id", Number(e.target.value))}
+                  className={selectClasses}
+                  disabled={submitting || !form.school_year_id}
+                >
+                  <option value={0}>
+                    {!form.school_year_id 
+                      ? "Sélectionnez d'abord une année scolaire" 
+                      : classrooms.length === 0 
+                        ? "Aucune classe disponible pour cette année"
+                        : "Sélectionnez une classe"}
+                  </option>
+                  {classrooms.map((c) => (
+                    <option value={c.id} key={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">

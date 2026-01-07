@@ -6,18 +6,26 @@ interface BreadcrumbProps {
 
 const PageBreadcrumb: React.FC<BreadcrumbProps> = ({ pageTitle }) => {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-      <h2
-        className="text-xl font-semibold text-gray-800 dark:text-white/90"
-        x-text="pageName"
-      >
-        {pageTitle}
-      </h2>
+    <div className="relative flex flex-wrap items-center justify-between gap-3 mb-6 pb-4 border-b border-gray-200 dark:border-gray-800">
+      {/* Subtle accent line */}
+      <div className="absolute bottom-0 left-0 h-0.5 w-16 bg-warning-500 rounded-full opacity-60"></div>
+      
+      <div className="flex items-center gap-3">
+        <div className="p-1.5 bg-warning-50 dark:bg-warning-900/20 rounded-lg">
+          <div className="w-1 h-5 bg-warning-500 rounded-full"></div>
+        </div>
+        <h2
+          className="text-2xl font-bold text-gray-800 dark:text-white/90"
+        >
+          {pageTitle}
+        </h2>
+      </div>
+      
       <nav>
         <ol className="flex items-center gap-1.5">
           <li>
             <Link
-              className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400"
+              className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-warning-600 dark:text-gray-400 dark:hover:text-warning-400 transition-colors"
               to="/"
             >
               Accueil
@@ -39,7 +47,7 @@ const PageBreadcrumb: React.FC<BreadcrumbProps> = ({ pageTitle }) => {
               </svg>
             </Link>
           </li>
-          <li className="text-sm text-gray-800 dark:text-white/90">
+          <li className="text-sm font-medium text-warning-600 dark:text-warning-400">
             {pageTitle}
           </li>
         </ol>

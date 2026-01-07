@@ -25,8 +25,9 @@ const remove = async (id: number) => {
   return res.data;
 };
 
-const getSubjects = async (classroomId: number) => {
-  const res = await axiosInstance.get(`/classrooms/${classroomId}/subjects`);
+const getSubjects = async (classroomId: number, schoolYearId?: number) => {
+  const params = schoolYearId ? { school_year_id: schoolYearId } : {};
+  const res = await axiosInstance.get(`/classrooms/${classroomId}/subjects`, { params });
   return res.data;
 };
 

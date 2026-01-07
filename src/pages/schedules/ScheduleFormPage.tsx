@@ -62,12 +62,31 @@ export default function ScheduleFormPage() {
     }
   }, [scheduleId]);
 
+  // Charger les classes et matières quand l'année scolaire change
+  useEffect(() => {
+    if (form.school_year_id) {
+      loadClassrooms(form.school_year_id);
+      loadSubjects(form.school_year_id);
+    } else {
+      setClassrooms([]);
+      setSubjects([]);
+    }
+  }, [form.school_year_id]);
+
+  // Charger les matières de la classe quand la classe change
+  useEffect(() => {
+    if (form.school_year_id && form.classroom_id) {
+      loadSubjectsForClassroom(form.school_year_id, form.classroom_id);
+    } else if (form.school_year_id && !form.classroom_id) {
+      // Si pas de classe sélectionnée, charger toutes les matières de l'année
+      loadSubjects(form.school_year_id);
+    }
+  }, [form.classroom_id, form.school_year_id]);
+
   const loadData = async () => {
     try {
-      const [classRes, teacherRes, subjectRes, yearRes] = await Promise.all([
-        classroomService.list(),
+      const [teacherRes, yearRes] = await Promise.all([
         teacherService.list(),
-        subjectService.list(),
         schoolYearService.list(),
       ]);
 
@@ -99,12 +118,119 @@ export default function ScheduleFormPage() {
         return [];
       };
 
-      setClassrooms(extractItems(classRes));
       setTeachers(extractItems(teacherRes));
-      setSubjects(extractItems(subjectRes));
       setSchoolYears(extractItems(yearRes));
+
+      // Charger les classes et matières si une année scolaire est déjà sélectionnée
+      if (form.school_year_id) {
+        await Promise.all([
+          loadClassrooms(form.school_year_id),
+          loadSubjects(form.school_year_id),
+        ]);
+      }
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const loadClassrooms = async (schoolYearId: string) => {
+    try {
+      const res = await classroomService.list({ school_year_id: parseInt(schoolYearId) });
+      
+      if (res?.success) {
+        let items: any[] = [];
+        if (Array.isArray(res.data)) {
+          if (res.data[0] && Array.isArray(res.data[0].data)) {
+            items = res.data[0].data;
+          } else if (res.data[0] && Array.isArray(res.data[0])) {
+            items = res.data[0];
+          } else {
+            items = res.data;
+          }
+        } else if (res.data && Array.isArray(res.data.data)) {
+          items = res.data.data;
+        }
+        setClassrooms(items || []);
+      }
+    } catch (e) {
+      console.error(e);
+      setClassrooms([]);
+    }
+  };
+
+  const loadSubjects = async (schoolYearId: string) => {
+    try {
+      const res = await subjectService.list({ school_year_id: parseInt(schoolYearId), per_page: 1000 });
+      console.log('loadSubjects response:', res);
+      
+      if (res?.success) {
+        let items: any[] = [];
+        if (Array.isArray(res.data)) {
+          if (res.data[0] && Array.isArray(res.data[0].data)) {
+            items = res.data[0].data;
+          } else if (res.data[0] && Array.isArray(res.data[0])) {
+            items = res.data[0];
+          } else {
+            items = res.data;
+          }
+        } else if (res.data && Array.isArray(res.data.data)) {
+          items = res.data.data;
+        }
+        console.log('Subjects extracted:', items);
+        setSubjects(items || []);
+      } else {
+        console.warn('loadSubjects: res.success is false', res);
+        setSubjects([]);
+      }
+    } catch (e) {
+      console.error('Error loading subjects:', e);
+      setSubjects([]);
+    }
+  };
+
+  const loadSubjectsForClassroom = async (schoolYearId: string, classroomId: string) => {
+    try {
+      // Charger les matières de la classe spécifique
+      const res = await classroomService.getSubjects(parseInt(classroomId), parseInt(schoolYearId));
+      console.log('loadSubjectsForClassroom response:', res);
+      
+      if (res?.success) {
+        let sectionSubjects: any[] = [];
+        if (Array.isArray(res.data)) {
+          if (res.data[0] && Array.isArray(res.data[0])) {
+            sectionSubjects = res.data[0];
+          } else if (res.data[0] && res.data[0].data && Array.isArray(res.data[0].data)) {
+            sectionSubjects = res.data[0].data;
+          } else {
+            sectionSubjects = res.data;
+          }
+        } else if (res.data && Array.isArray(res.data)) {
+          sectionSubjects = res.data;
+        } else if (res.data && res.data.data && Array.isArray(res.data.data)) {
+          sectionSubjects = res.data.data;
+        }
+        
+        console.log('SectionSubjects extracted:', sectionSubjects);
+        
+        // Extraire les objets Subject depuis les SectionSubject
+        const subjects = sectionSubjects
+          .filter((ss: any) => ss && ss.subject) // Filtrer ceux qui ont un subject
+          .map((ss: any) => ({
+            ...ss.subject,
+            coefficient: ss.coefficient, // Garder le coefficient si nécessaire
+          })); // Extraire le subject avec ses propriétés
+        
+        console.log('Subjects extracted from classroom:', subjects);
+        setSubjects(subjects || []);
+      } else {
+        console.warn('loadSubjectsForClassroom: res.success is false', res);
+        // En cas d'erreur, charger toutes les matières de l'année
+        loadSubjects(schoolYearId);
+      }
+    } catch (e) {
+      console.error('Error loading subjects for classroom:', e);
+      // En cas d'erreur, charger toutes les matières de l'année
+      loadSubjects(schoolYearId);
     }
   };
 
@@ -112,9 +238,9 @@ export default function ScheduleFormPage() {
     try {
       const res = await scheduleService.get(parseInt(scheduleId!));
       if (res?.success) {
-        const schedule = res.data;
-        setForm({
-          classroom_id: schedule.classroom_id?.toString() || "",
+        const schedule = Array.isArray(res.data) ? res.data[0] : res.data;
+        const scheduleData = {
+          classroom_id: schedule.classroom_id?.toString() || schedule.section_id?.toString() || "",
           subject_id: schedule.subject_id?.toString() || "",
           teacher_id: schedule.teacher_id?.toString() || "",
           school_year_id: schedule.school_year_id?.toString() || "",
@@ -122,7 +248,18 @@ export default function ScheduleFormPage() {
           start_time: schedule.start_time || "08:00",
           end_time: schedule.end_time || "09:00",
           room: schedule.room || "",
-        });
+        };
+        setForm(scheduleData);
+        
+        // Charger les classes et matières pour l'année scolaire du schedule
+        if (scheduleData.school_year_id) {
+          await Promise.all([
+            loadClassrooms(scheduleData.school_year_id),
+            scheduleData.classroom_id 
+              ? loadSubjectsForClassroom(scheduleData.school_year_id, scheduleData.classroom_id)
+              : loadSubjects(scheduleData.school_year_id),
+          ]);
+        }
       }
     } catch (e) {
       console.error(e);
@@ -195,14 +332,21 @@ export default function ScheduleFormPage() {
               <Label>Année scolaire *</Label>
               <select
                 value={form.school_year_id}
-                onChange={(e) => setForm({ ...form, school_year_id: e.target.value })}
+                onChange={(e) => {
+                  setForm({ 
+                    ...form, 
+                    school_year_id: e.target.value,
+                    classroom_id: "", // Réinitialiser la classe
+                    subject_id: "", // Réinitialiser la matière
+                  });
+                }}
                 className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent px-4 py-2.5 text-sm dark:bg-gray-900 dark:text-white/90"
                 required
               >
                 <option value="">Sélectionner une année scolaire</option>
                 {schoolYears.map((year, index) => (
                   <option key={`${year.id}-${index}`} value={year.id}>
-                    {year.label}
+                    {year.label} {year.is_active ? '(Active)' : ''}
                   </option>
                 ))}
               </select>
@@ -212,11 +356,20 @@ export default function ScheduleFormPage() {
               <Label>Classe *</Label>
               <select
                 value={form.classroom_id}
-                onChange={(e) => setForm({ ...form, classroom_id: e.target.value })}
+                onChange={(e) => {
+                  setForm({ 
+                    ...form, 
+                    classroom_id: e.target.value,
+                    subject_id: "", // Réinitialiser la matière quand la classe change
+                  });
+                }}
                 className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent px-4 py-2.5 text-sm dark:bg-gray-900 dark:text-white/90"
                 required
+                disabled={!form.school_year_id}
               >
-                <option value="">Sélectionner une classe</option>
+                <option value="">
+                  {!form.school_year_id ? "Sélectionnez d'abord une année scolaire" : "Sélectionner une classe"}
+                </option>
                 {classrooms.map((classroom, index) => (
                   <option key={`${classroom.id}-${index}`} value={classroom.id}>
                     {classroom.name}
@@ -232,14 +385,28 @@ export default function ScheduleFormPage() {
                 onChange={(e) => setForm({ ...form, subject_id: e.target.value })}
                 className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent px-4 py-2.5 text-sm dark:bg-gray-900 dark:text-white/90"
                 required
+                disabled={!form.school_year_id || (!form.classroom_id && subjects.length === 0)}
               >
-                <option value="">Sélectionner une matière</option>
+                <option value="">
+                  {!form.school_year_id 
+                    ? "Sélectionnez d'abord une année scolaire" 
+                    : form.classroom_id && subjects.length === 0
+                    ? "Aucune matière assignée à cette classe" 
+                    : !form.classroom_id && subjects.length === 0
+                    ? "Sélectionnez d'abord une classe pour voir ses matières"
+                    : "Sélectionner une matière"}
+                </option>
                 {subjects.map((subject, index) => (
                   <option key={`${subject.id}-${index}`} value={subject.id}>
-                    {subject.name}
+                    {subject.name} {subject.code ? `(${subject.code})` : ''}
                   </option>
                 ))}
               </select>
+              {form.school_year_id && form.classroom_id && subjects.length === 0 && (
+                <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                  Cette classe n'a pas encore de matières assignées pour cette année scolaire.
+                </p>
+              )}
             </div>
 
             <div>
