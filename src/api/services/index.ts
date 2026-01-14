@@ -10,3 +10,4 @@ export { default as scheduleService } from './scheduleService';
 export { default as assignmentService } from './assignmentService';
 export { default as enrollmentService } from './enrollmentService';
 export { default as reportCardService } from './reportCardService';
+export { default as resourceService } from './resourceService';
