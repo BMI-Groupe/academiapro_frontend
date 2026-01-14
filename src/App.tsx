@@ -64,6 +64,8 @@ import { SchoolYearProvider } from "./context/SchoolYearContext.tsx";
 import ReceiptPage from "./pages/payments/ReceiptPage.tsx";
 import UserManagement from "./pages/users/UserManagement.tsx";
 import ReportCardPage from "./pages/reports/ReportCardPage.tsx";
+import ResourceManagement from "./pages/resources/ResourceManagement.tsx";
+import ResourceUploadPage from "./pages/resources/ResourceUploadPage.tsx";
 
 import { useEffect } from "react";
 import useAuth from "./providers/auth/useAuth.ts";
@@ -134,6 +136,8 @@ export default function App() {
                     <Route path="/school-years/new" element={<SchoolYearFormPage />} />
                     <Route path="/school-years/:id/edit" element={<SchoolYearFormPage />} />
                     <Route path="/evaluation-types" element={<EvaluationTypeManagement />} />
+                    <Route path="/resources" element={<ResourceManagement />} />
+                    <Route path="/resources/upload" element={<ResourceUploadPage />} />
                     <Route path="/payments" element={<PaymentManagement />} />
                     <Route path="/payments/new" element={<PaymentFormPage />} />
                     <Route path="/payments/:id/receipt" element={<ReceiptPage />} />

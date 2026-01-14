@@ -63,6 +63,11 @@ const navItems: NavItem[] = [
     path: "/assignments",
   },
   {
+    icon: <FolderIcon />,
+    name: "Ressources",
+    path: "/resources",
+  },
+  {
     icon: <PieChartIcon />,
     name: "Notes",
     path: "/grades",
