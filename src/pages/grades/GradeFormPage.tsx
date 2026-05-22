@@ -126,6 +126,15 @@ export default function GradeFormPage() {
     return subjects;
   }, [subjects, assignments, form.assignment_id]);
 
+  const selectedAssignment = useMemo(() => {
+    if (!form.assignment_id) return null;
+    return assignments.find(a => a.id.toString() === form.assignment_id) || null;
+  }, [assignments, form.assignment_id]);
+
+  const isGlobalAssignment = useMemo(() => {
+    return !!(selectedAssignment && !selectedAssignment.subject_id);
+  }, [selectedAssignment]);
+
   const loadData = async () => {
     try {
       const [yearRes] = await Promise.all([
@@ -552,26 +561,32 @@ export default function GradeFormPage() {
             </div>
 
             <div>
-              <Label>Matière *</Label>
+              <Label>Matière {isGlobalAssignment ? "" : "*"}</Label>
               <select
-                value={form.subject_id}
+                value={isGlobalAssignment ? "global" : form.subject_id}
                 onChange={(e) => setForm({ ...form, subject_id: e.target.value })}
                 className="h-11 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent px-4 py-2.5 text-sm dark:bg-gray-900 dark:text-white/90 disabled:bg-gray-100 disabled:cursor-not-allowed dark:disabled:bg-gray-800"
-                disabled={!form.school_year_id || !form.classroom_id || !form.assignment_id}
-                required
+                disabled={isGlobalAssignment || !form.school_year_id || !form.classroom_id || !form.assignment_id}
+                required={!isGlobalAssignment}
               >
-                <option value="">
-                  {!form.assignment_id 
-                    ? 'Sélectionnez d\'abord un examen/devoir' 
-                    : filteredSubjects.length === 0 
-                      ? 'Aucune matière disponible pour ce devoir' 
-                      : 'Sélectionner une matière'}
-                </option>
-                {filteredSubjects.map((subject) => (
-                  <option key={subject.id} value={subject.id}>
-                    {subject.name} ({subject.code}) {subject.coefficient ? `- Coef: ${subject.coefficient}` : ''}
-                  </option>
-                ))}
+                {isGlobalAssignment ? (
+                  <option value="global">Toutes les matières (Devoir global)</option>
+                ) : (
+                  <>
+                    <option value="">
+                      {!form.assignment_id 
+                        ? 'Sélectionnez d\'abord un examen/devoir' 
+                        : filteredSubjects.length === 0 
+                          ? 'Aucune matière disponible pour ce devoir' 
+                          : 'Sélectionner une matière'}
+                    </option>
+                    {filteredSubjects.map((subject) => (
+                      <option key={subject.id} value={subject.id}>
+                        {subject.name} ({subject.code}) {subject.coefficient ? `- Coef: ${subject.coefficient}` : ''}
+                      </option>
+                    ))}
+                  </>
+                )}
               </select>
               {!form.school_year_id && (
                 <p className="text-xs text-gray-500 mt-1">Veuillez d'abord sélectionner une année scolaire</p>
@@ -582,7 +597,7 @@ export default function GradeFormPage() {
               {form.school_year_id && form.classroom_id && !form.assignment_id && (
                 <p className="text-xs text-gray-500 mt-1">Veuillez d'abord sélectionner un examen/devoir</p>
               )}
-              {form.assignment_id && filteredSubjects.length === 0 && (
+              {form.assignment_id && !isGlobalAssignment && filteredSubjects.length === 0 && (
                 <p className="text-xs text-yellow-600 dark:text-yellow-500 mt-1">
                   Aucune matière disponible pour ce devoir. Le devoir sélectionné n'est peut-être pas lié à une matière de cette classe.
                 </p>
