@@ -156,6 +156,7 @@ export default function AssignmentFormPage() {
       }
 
       const res = await classroomService.getSubjects(parseInt(classroomIdToUse), parseInt(schoolYearIdToUse));
+      console.log("loadSubjects API Response:", res);
       
       if (res?.success) {
         let items: any[] = [];
@@ -176,6 +177,8 @@ export default function AssignmentFormPage() {
           code: item.subject?.code || item.code,
           coefficient: item.coefficient,
         })).filter((s: any) => s.id); // Filtrer les entrées invalides
+        
+        console.log("loadSubjects extracted list:", subjectsList);
         
         if (subjectsList.length > 0) {
           setSubjects(subjectsList);
@@ -203,6 +206,7 @@ export default function AssignmentFormPage() {
 
       // Charger toutes les matières de l'année scolaire avec une pagination élevée
       const res = await subjectService.list({ school_year_id: parseInt(schoolYearIdToUse), per_page: 100 });
+      console.log("loadAllSubjects API Response:", res);
       
       if (res?.success) {
         let items: any[] = [];
@@ -224,6 +228,8 @@ export default function AssignmentFormPage() {
           code: subject.code,
           coefficient: null, // Pas de coefficient spécifique quand toutes les classes
         })).filter((s: any) => s.id);
+        
+        console.log("loadAllSubjects extracted list:", subjectsList);
         
         setSubjects(subjectsList);
       }
