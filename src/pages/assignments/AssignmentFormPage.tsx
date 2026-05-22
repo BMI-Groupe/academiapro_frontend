@@ -66,7 +66,8 @@ export default function AssignmentFormPage() {
         // Charger les matières de la classe spécifique
         loadSubjects(form.classroom_id, form.school_year_id);
       } else {
-        setSubjects([]);
+        // Charger toutes les matières de l'année par défaut
+        loadAllSubjects(form.school_year_id);
       }
     } else {
       setSubjects([]);
@@ -176,11 +177,18 @@ export default function AssignmentFormPage() {
           coefficient: item.coefficient,
         })).filter((s: any) => s.id); // Filtrer les entrées invalides
         
-        setSubjects(subjectsList);
+        if (subjectsList.length > 0) {
+          setSubjects(subjectsList);
+        } else {
+          // Fallback
+          await loadAllSubjects(schoolYearIdToUse);
+        }
+      } else {
+        await loadAllSubjects(schoolYearIdToUse);
       }
     } catch (e) {
       console.error("Error loading subjects:", e);
-      setSubjects([]);
+      await loadAllSubjects(schoolYearId || form.school_year_id);
     }
   };
 
@@ -193,8 +201,8 @@ export default function AssignmentFormPage() {
         return;
       }
 
-      // Charger toutes les matières de l'année scolaire
-      const res = await subjectService.list({ school_year_id: parseInt(schoolYearIdToUse) });
+      // Charger toutes les matières de l'année scolaire avec une pagination élevée
+      const res = await subjectService.list({ school_year_id: parseInt(schoolYearIdToUse), per_page: 100 });
       
       if (res?.success) {
         let items: any[] = [];
@@ -267,8 +275,7 @@ export default function AssignmentFormPage() {
           // Charger les matières si on a une section
           if (sectionId) {
             await loadSubjects(sectionId, schoolYearId);
-          } else if (formData.apply_to_all_subjects) {
-            // Si pas de matière spécifique, charger toutes les matières
+          } else {
             await loadAllSubjects(schoolYearId);
           }
         }
@@ -506,6 +513,8 @@ export default function AssignmentFormPage() {
                     setForm({ ...form, classroom_id: newVal, subject_id: "", apply_to_all_sections: false });
                     if (newVal && form.school_year_id) {
                       loadSubjects(newVal, form.school_year_id);
+                    } else if (form.school_year_id) {
+                      loadAllSubjects(form.school_year_id);
                     } else {
                       setSubjects([]);
                     }
