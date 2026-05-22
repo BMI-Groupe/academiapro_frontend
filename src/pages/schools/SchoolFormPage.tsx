@@ -143,9 +143,23 @@ export default function SchoolFormPage() {
           }
       } catch (e: any) {
           console.error(e);
+          let errorMsg = "Une erreur est survenue lors de l'enregistrement.";
+          
+          if (e.code === "ECONNABORTED" && e.message?.includes("timeout")) {
+              errorMsg = "Le temps de réponse du serveur a expiré. Veuillez vérifier votre connexion.";
+          } else if (e.response?.status === 413) {
+              errorMsg = "Le logo est trop volumineux ou le serveur n'a pas pu traiter la demande. Veuillez vérifier la taille du fichier.";
+          } else if (e.response?.status === 422) {
+              errorMsg = "Un établissement avec cet email ou ce numéro de téléphone existe déjà.";
+          } else if (e.response?.data?.message) {
+              errorMsg = e.response.data.message;
+          } else if (!e.response) {
+              errorMsg = "Le serveur n'a pas pu traiter la demande (erreur réseau ou CORS). Veuillez vérifier votre connexion.";
+          }
+          
           openModal({ 
               title:"Erreur", 
-              description: e.response?.data?.message || "Une erreur est survenue.", 
+              description: errorMsg, 
               variant:"error" 
           });
       } finally {
@@ -195,6 +209,14 @@ export default function SchoolFormPage() {
                         </div>
                     )}
                     <DropzoneComponent onFileSelect={(file) => {
+                        if (file.size > 5 * 1024 * 1024) {
+                            openModal({ 
+                                title: "Fichier trop volumineux", 
+                                description: "Le logo ne doit pas dépasser 5 Mo. Veuillez choisir un autre fichier ou compresser votre image.", 
+                                variant: "error" 
+                            });
+                            return;
+                        }
                         setLogo(file);
                         setPreview(URL.createObjectURL(file));
                     }} />

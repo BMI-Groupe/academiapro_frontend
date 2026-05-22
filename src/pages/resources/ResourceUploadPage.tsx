@@ -132,7 +132,17 @@ export default function ResourceUploadPage() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setFormData({ ...formData, file: e.target.files[0] });
+      const file = e.target.files[0];
+      if (file.size > 20 * 1024 * 1024) {
+        openModal({
+          title: "Fichier trop volumineux",
+          description: "La ressource pédagogique ne doit pas dépasser 20 Mo. Veuillez compresser votre fichier ou en choisir un plus léger.",
+          variant: "error"
+        });
+        e.target.value = "";
+        return;
+      }
+      setFormData({ ...formData, file: file });
     }
   };
 
@@ -178,7 +188,20 @@ export default function ResourceUploadPage() {
       }
     } catch (e: any) {
       console.error(e);
-      const errorMsg = e?.response?.data?.message || "Une erreur est survenue.";
+      let errorMsg = "Une erreur est survenue lors de l'envoi de la ressource.";
+      
+      if (e.code === "ECONNABORTED" && e.message?.includes("timeout")) {
+          errorMsg = "Le temps de réponse a expiré. Votre fichier est peut-être trop lourd ou votre connexion Internet est instable.";
+      } else if (e.response?.status === 413) {
+          errorMsg = "Le fichier est trop volumineux pour être traité par le serveur (limite de 20 Mo dépassée).";
+      } else if (e.response?.status === 422) {
+          errorMsg = e.response.data?.message || "Les informations saisies sont incorrectes ou le fichier est invalide.";
+      } else if (e.response?.data?.message) {
+          errorMsg = e.response.data.message;
+      } else if (!e.response) {
+          errorMsg = "Impossible de contacter le serveur. Veuillez vérifier votre connexion Internet.";
+      }
+      
       openModal({ title: "Erreur", description: errorMsg, variant: "error" });
     } finally {
       setLoading(false);

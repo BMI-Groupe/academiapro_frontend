@@ -6,9 +6,11 @@ import Input from "../form/input/InputField";
 import Label from "../form/Label";
 import useAuth from "../../providers/auth/useAuth";
 import axiosInstance, { STORAGE_URL } from "../../api/axios";
+import { useCustomModal } from "../../context/ModalContext";
 
 export default function UserMetaCard() {
   const { isOpen, openModal, closeModal } = useModal();
+  const { openModal: openCustomModal } = useCustomModal();
   // @ts-ignore
   const { userInfo, authMe } = useAuth(); // Utiliser userInfo au lieu de userData qui semble être pour autre chose parfois, ou vérifier la cohérence.
   // Dans AuthProvider, userInfo est set initialement, et userData via authMe. 
@@ -51,6 +53,15 @@ export default function UserMetaCard() {
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+      if (file.size > 2 * 1024 * 1024) {
+        openCustomModal({
+          title: "Photo trop volumineuse",
+          description: "La photo de profil ne doit pas dépasser 2 Mo. Veuillez choisir une image plus légère ou compresser celle-ci.",
+          variant: "error"
+        });
+        e.target.value = "";
+        return;
+      }
       setPhotoFile(file);
       setPhotoPreview(URL.createObjectURL(file));
     }
@@ -86,13 +97,30 @@ export default function UserMetaCard() {
         }
         closeModal();
       } else {
-        alert(response.data.message || "Erreur lors de la mise à jour");
+        openCustomModal({
+          title: "Attention",
+          description: response.data.message || "Une erreur est survenue lors de la mise à jour.",
+          variant: "warning"
+        });
       }
 
     } catch (error: any) {
       console.error(error);
-      const msg = error.response?.data?.message || "Une erreur est survenue";
-      alert(msg);
+      let errorMsg = "Une erreur est survenue lors de la mise à jour du profil.";
+      if (error.code === "ECONNABORTED" && error.message?.includes("timeout")) {
+          errorMsg = "Le temps de réponse du serveur a expiré. Veuillez vérifier votre connexion.";
+      } else if (error.response?.status === 413) {
+          errorMsg = "L'image est trop volumineuse pour être traitée par le serveur.";
+      } else if (error.response?.status === 422) {
+          errorMsg = error.response.data?.message || "Les informations saisies sont incorrectes.";
+      } else if (error.response?.data?.message) {
+          errorMsg = error.response.data.message;
+      }
+      openCustomModal({
+          title: "Erreur",
+          description: errorMsg,
+          variant: "error"
+      });
     } finally {
       setLoading(false);
     }

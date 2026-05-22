@@ -89,9 +89,23 @@ export default function SchoolYearFormPage() {
               openModal({ title: "Succès", description: "Année scolaire créée.", variant: "success" });
           }
           navigate("/school-years");
-      } catch (e) {
+      } catch (e: any) {
           console.error(e);
-          openModal({ title: "Erreur", description: "Une erreur est survenue.", variant: "error" });
+          let errorDescription = "Une erreur est survenue lors de l'enregistrement.";
+          
+          if (e.code === "ECONNABORTED" && e.message?.includes("timeout")) {
+              errorDescription = "Le temps de réponse du serveur a expiré. Veuillez vérifier votre connexion.";
+          } else if (e.response?.status === 422) {
+              errorDescription = "Cette année scolaire (libellé) existe déjà pour votre établissement. Veuillez choisir un autre libellé ou modifier les années de début/fin.";
+          } else if (e.response?.data?.message) {
+              errorDescription = e.response.data.message;
+          }
+          
+          openModal({ 
+              title: "Erreur", 
+              description: errorDescription, 
+              variant: "error" 
+          });
       } finally {
           setSubmitting(false);
       }
