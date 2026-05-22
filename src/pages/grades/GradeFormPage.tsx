@@ -120,7 +120,26 @@ export default function GradeFormPage() {
     }
     // If assignment has a specific subject, only show that subject
     if (selectedAssignment.subject_id) {
-      return subjects.filter(s => s.id.toString() === selectedAssignment.subject_id.toString());
+      const match = subjects.filter(s => s.id.toString() === selectedAssignment.subject_id.toString());
+      if (match.length > 0) {
+        return match;
+      }
+      // Si la matière n'est pas dans le programme de la classe mais est présente dans la relation 'subject' du devoir
+      if (selectedAssignment.subject) {
+        return [{
+          id: selectedAssignment.subject.id,
+          name: selectedAssignment.subject.name,
+          code: selectedAssignment.subject.code || "",
+          coefficient: null
+        }];
+      }
+      // Fallback avec l'ID
+      return [{
+        id: selectedAssignment.subject_id,
+        name: `Matière #${selectedAssignment.subject_id}`,
+        code: "",
+        coefficient: null
+      }];
     }
     // If assignment applies to all subjects, show all subjects
     return subjects;
