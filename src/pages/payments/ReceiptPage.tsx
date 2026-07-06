@@ -114,10 +114,10 @@ export default function ReceiptPage() {
             <tbody>
               <tr className="border-b border-gray-100">
                 <td className="py-4 text-gray-800">
-                  {payment.type === 'tuition' ? 'Frais de scolarité' : 
-                   payment.type === 'registration' ? 'Frais d\'inscription' : 
-                   payment.type === 'canteen' ? 'Cantine' : 
-                   payment.type === 'transport' ? 'Transport' : 'Autre'}
+                  {payment.type?.toUpperCase() === 'TUITION' ? 'Frais de scolarité' :
+                   payment.type?.toUpperCase() === 'REGISTRATION' ? 'Frais d\'inscription' :
+                   payment.type?.toUpperCase() === 'CANTEEN' ? 'Cantine' :
+                   payment.type?.toUpperCase() === 'TRANSPORT' ? 'Transport' : 'Autre'}
                    {payment.notes && <div className="text-xs text-gray-500 italic mt-1">{payment.notes}</div>}
                 </td>
                 <td className="py-4 text-gray-800 capitalize">{payment.payment_method || 'Espèces'}</td>
@@ -128,6 +128,28 @@ export default function ReceiptPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Bilan financier (uniquement pour les paiements d'écolage) */}
+        {payment.balance && (
+          <div className="mb-8 flex justify-end">
+            <div className="w-full sm:w-1/2 text-sm">
+              <div className="flex justify-between py-1 text-gray-600">
+                <span>Total dû (année) :</span>
+                <span>{new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF' }).format(payment.balance.total_due)}</span>
+              </div>
+              <div className="flex justify-between py-1 text-gray-600">
+                <span>Total payé (année) :</span>
+                <span>{new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF' }).format(payment.balance.total_paid)}</span>
+              </div>
+              <div className="flex justify-between py-2 border-t-2 border-gray-300 font-bold">
+                <span className="text-gray-900">Reste à payer :</span>
+                <span className={payment.balance.balance > 0 ? 'text-orange-600' : 'text-green-600'}>
+                  {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF' }).format(payment.balance.balance)}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Total et Signature */}
         <div className="flex justify-between items-end mt-12 pt-6 border-t border-gray-200">
